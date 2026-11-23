@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: manufacturing-customer-order-agent
+    env: python
+    region: oregon
+    plan: standard
+    buildCommand: "pip install -r backend/requirements.txt && python backend/app/scripts/seed.py"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    rootDir: backend
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 15
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: 7
+      - key: COOKIE_SECURE
+        value: "True"
+      - key: COOKIE_SAMESITE
+        value: "lax"
+      - key: CORS_ORIGINS
+        value: "https://manufacturing-customer-order-agent.onrender.com,http://localhost:5173"
+      - key: DOMO_SUBDOMAIN
+        value: gwcteq-partner
+      - key: DOMO_TOKEN
+        sync: false
+      - key: DOMO_MODEL
+        value: domo.domo_ai.domogpt-small-v2.1:anthropic
+      - key: FEASIBILITY_AGENT_MODE
+        value: agentic
+      - key: MONITORING_AGENT_MODE
+        value: agentic
+      - key: DATA_DIR
+        value: ../data/data
+      - key: ADMIN_EMAIL
+        value: admin@manufacturing.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: DEMO_EMAIL
+        value: demo@manufacturing.com
+      - key: DEMO_PASSWORD
+        sync: false
+

@@ -1,0 +1,53 @@
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+*.env
+*.env.*
+!*.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*.token
+secrets/
+credentials/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+venv/
+ENV/
+env/
+
+# Node & Frontend
+node_modules/
+Frontend/frontend/node_modules/
+Frontend/frontend/dist/
+dist/
+.eslintcache
+
+# Databases & local storage
+*.db
+*.sqlite
+*.sqlite3
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs & temp scratch
+*.log
+scratch/
+.tmp/
+
+# OS generated
+.DS_Store
+Thumbs.db

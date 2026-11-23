@@ -1,0 +1,330 @@
+/* AI AGENT DEVELOPMENT SETUP GUIDE - SECTION 9 DESIGN SYSTEM & THEME TOKENS */
+
+:root {
+  /* 9.1 Brand palette */
+  --brand-purple: #6f3dba;
+  --brand-blue: #4d8eeb;
+  --brand-orange: #f58a3a;
+  --brand-navy: #1f2f59;
+  --brand-white: #ffffff;
+  --brand-bg: #fcfcfe;
+  --brand-blue-soft: #eaf4ff;
+  --brand-purple-soft: #f3eeff;
+  --brand-peach-soft: #fff2eb;
+  --sky: #7fb0f2;
+  --cyan: #31b7c3;
+
+  /* 9.2 Text */
+  --text-primary: #1f2f59;
+  --text-secondary: #54627e;
+  --text-muted: #98a2b3;
+  --on-accent: #ffffff;
+  --muted-ink: #64748b;
+
+  /* 9.3 Surfaces */
+  --page-bg: #f5f7fa;
+  --surface-rgb: 255, 255, 255;
+  --surface-hi: #ffffff;
+  --white: #ffffff;
+  --kg-bg-2: #f8fafd;
+  --kg-bg-3: #f3f6fb;
+  --light: #f4f7fc;
+  --muted-fill: #eef1f6;
+
+  --node-glass: rgba(255, 255, 255, 0.94);
+  --shadow-rgb: 31, 47, 89;
+  --line-rgb: 31, 47, 89;
+  --paper-rgb: 252, 252, 254;
+
+  /* 9.4 Graph depth ramp */
+  --depth-0: #e45c72;
+  --depth-1: #6f3dba;
+  --depth-2: #4d8eeb;
+  --depth-3: #f58a3a;
+  --depth-4: #31b7c3;
+  --depth-5: #b88943;
+  --depth-6: #8a63d2;
+  --depth-7: #3e7bc4;
+
+  /* 9.5 Charts */
+  --chart-c1: #4D8EEB;
+  --chart-c2: #D9701F;
+  --chart-c3: #6F3DBA;
+  --chart-c4: #0E9C86;
+  --chart-o1: #8FB8F2;
+  --chart-o2: #5F97E4;
+  --chart-o3: #3670BB;
+  --chart-o4: #17477F;
+  --chart-axis: #7c839b;
+  --chart-label: #2c2c2c;
+  --chart-surface: #ffffff;
+
+  /* 9.6 Drawer / workspace panel */
+  --dr-bg: #f7f7fc;
+  --dr-surface: #ffffff;
+  --dr-card: rgba(255, 255, 255, 0.72);
+  --dr-ink: #172554;
+  --dr-ink-2: #64748b;
+  --dr-ink-3: #8b95ad;
+  --dr-purple: #6d3ccb;
+  --dr-purple-soft: #a78bfa;
+  --dr-blue: #4f8ef7;
+  --dr-border: #e2e4f0;
+  --dr-active: #f1edff;
+  --dr-hover: #f5f2ff;
+
+  /* 9.7 Backdrop washes */
+  --bx-wash-1: #e2eeff;
+  --bx-wash-2: #ece3ff;
+  --bx-wash-3: #ffe9d9;
+  --bx-wash-4: #ffe1ec;
+  --bx-wash-5: #e4d7ff;
+  --bx-wash-6: #d8e8ff;
+  --ghost-ink: rgba(103, 104, 106, 0.14);
+  --signal-flash: #ffffff;
+
+  /* Status Colors */
+  --status-ok: #22c55e;
+  --status-ok-bg: rgba(34, 197, 94, 0.12);
+  --status-warning: #f58a3a;
+  --status-warning-bg: rgba(245, 138, 58, 0.12);
+  --status-danger: #e45c72;
+  --status-danger-bg: rgba(228, 92, 114, 0.12);
+  --status-info: #4d8eeb;
+  --status-info-bg: rgba(77, 142, 235, 0.12);
+
+  /* Lines, borders, shadows */
+  --line: rgba(var(--line-rgb), 0.12);
+  --border-default: rgba(var(--line-rgb), 0.12);
+  --shadow-card: 0 4px 16px rgba(var(--shadow-rgb), 0.08);
+
+  /* Compatibility mappings for Manufacturing 360 components */
+  --mfg-bg-main: var(--page-bg);
+  --mfg-bg-sidebar: var(--dr-bg);
+  --mfg-bg-card: var(--surface-hi);
+  --mfg-bg-surface: var(--kg-bg-2);
+  --mfg-accent-primary: var(--brand-purple);
+  --mfg-accent-secondary: var(--brand-blue);
+  --mfg-accent-warning: var(--brand-orange);
+  --mfg-text-primary: var(--text-primary);
+  --mfg-text-secondary: var(--text-secondary);
+  --mfg-text-muted: var(--text-muted);
+  --mfg-border-default: var(--line);
+  --mfg-border-subtle: rgba(var(--line-rgb), 0.08);
+  --mfg-status-success: var(--status-ok);
+  --mfg-status-warning: var(--status-warning);
+  --mfg-status-critical: var(--status-danger);
+  --mfg-status-info: var(--status-info);
+}
+
+:root[data-theme="dark"] {
+  /* 9.1 Brand palette (Dark) */
+  --brand-purple: #a684ee;
+  --brand-blue: #78acf5;
+  --brand-orange: #ffab63;
+  --brand-navy: #e7edfa;
+  --brand-white: #e9eefa;
+  --brand-bg: #0b1220;
+  --brand-blue-soft: #142339;
+  --brand-purple-soft: #1e1836;
+  --brand-peach-soft: #2b1d17;
+  --sky: #9cc4f8;
+  --cyan: #4fd3de;
+
+  /* 9.2 Text (Dark) */
+  --text-primary: #f1f5fd;
+  --text-secondary: #b3c0d8;
+  --text-muted: #7d8ba6;
+  --on-accent: #0a1020;
+  --muted-ink: #8494ae;
+
+  /* 9.3 Surfaces (Dark) */
+  --page-bg: #090e1a;
+  --surface-rgb: 25, 34, 53;
+  --surface-hi: #26334d;
+  --white: #1b2540;
+  --kg-bg-2: #111a2b;
+  --kg-bg-3: #162034;
+  --light: #162034;
+  --muted-fill: #151e30;
+
+  --node-glass: rgba(30, 41, 64, 0.94);
+  --shadow-rgb: 0, 0, 0;
+  --line-rgb: 214, 224, 244;
+  --paper-rgb: 9, 14, 26;
+
+  /* 9.4 Graph depth ramp (Dark) */
+  --depth-0: #ff7d90;
+  --depth-1: #a684ee;
+  --depth-2: #78acf5;
+  --depth-3: #ffab63;
+  --depth-4: #4fd3de;
+  --depth-5: #ddab5f;
+  --depth-6: #b192ec;
+  --depth-7: #6ba2e0;
+
+  /* 9.5 Charts (Dark) */
+  --chart-c1: #6BA5F5;
+  --chart-c2: #F0913E;
+  --chart-c3: #A684EE;
+  --chart-c4: #2BC0A6;
+  --chart-o1: #2E5C98;
+  --chart-o2: #4A7EC2;
+  --chart-o3: #71A3E4;
+  --chart-o4: #A6CAFA;
+  --chart-axis: #8d97ae;
+  --chart-label: #dfe6f4;
+  --chart-surface: #192235;
+
+  /* 9.6 Drawer / workspace panel (Dark) */
+  --dr-bg: #10121b;
+  --dr-surface: #171a27;
+  --dr-card: rgba(23, 26, 39, 0.82);
+  --dr-ink: #f1f5ff;
+  --dr-ink-2: #98a2b8;
+  --dr-ink-3: #78829a;
+  --dr-purple: #9b7cf6;
+  --dr-purple-soft: #b9a4fb;
+  --dr-blue: #4f8ef7;
+  --dr-border: #292d40;
+  --dr-active: #211b38;
+  --dr-hover: #1b1f30;
+
+  /* 9.7 Backdrop washes (Dark) */
+  --bx-wash-1: #13233d;
+  --bx-wash-2: #1b1938;
+  --bx-wash-3: #2c2019;
+  --bx-wash-4: #2a1a28;
+  --bx-wash-5: #1d1a3c;
+  --bx-wash-6: #101f36;
+  --ghost-ink: rgba(190, 205, 235, 0.10);
+  --signal-flash: #dce8ff;
+
+  /* Status Colors (Dark) */
+  --status-ok: #22c55e;
+  --status-ok-bg: rgba(34, 197, 94, 0.18);
+  --status-warning: #ffab63;
+  --status-warning-bg: rgba(255, 171, 99, 0.18);
+  --status-danger: #ff7d90;
+  --status-danger-bg: rgba(255, 125, 144, 0.18);
+  --status-info: #78acf5;
+  --status-info-bg: rgba(120, 172, 245, 0.18);
+
+  /* Lines, borders, shadows (Dark) */
+  --line: rgba(var(--line-rgb), 0.14);
+  --border-default: rgba(var(--line-rgb), 0.14);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.6);
+
+  /* Compatibility mappings (Dark) */
+  --mfg-bg-main: var(--page-bg);
+  --mfg-bg-sidebar: var(--dr-bg);
+  --mfg-bg-card: var(--surface-hi);
+  --mfg-bg-surface: var(--kg-bg-2);
+  --mfg-accent-primary: var(--brand-purple);
+  --mfg-accent-secondary: var(--brand-blue);
+  --mfg-accent-warning: var(--brand-orange);
+  --mfg-text-primary: var(--text-primary);
+  --mfg-text-secondary: var(--text-secondary);
+  --mfg-text-muted: var(--text-muted);
+  --mfg-border-default: var(--line);
+  --mfg-border-subtle: rgba(var(--line-rgb), 0.08);
+  --mfg-status-success: var(--status-ok);
+  --mfg-status-warning: var(--status-warning);
+  --mfg-status-critical: var(--status-danger);
+  --mfg-status-info: var(--status-info);
+}
+
+/* Global Typography & Reset */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--page-bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Universal Badges */
+.mfg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.mfg-badge-ready {
+  background: var(--status-ok-bg);
+  color: var(--status-ok);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.mfg-badge-warning, .mfg-badge-at-risk {
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+  border: 1px solid rgba(245, 138, 58, 0.3);
+}
+
+.mfg-badge-critical, .mfg-badge-blocked {
+  background: var(--status-danger-bg);
+  color: var(--status-danger);
+  border: 1px solid rgba(228, 92, 114, 0.3);
+}
+
+.mfg-badge-info {
+  background: var(--status-info-bg);
+  color: var(--status-info);
+  border: 1px solid rgba(77, 142, 235, 0.3);
+}
+
+.mfg-badge-neutral {
+  background: rgba(var(--line-rgb), 0.08);
+  color: var(--text-secondary);
+  border: 1px solid var(--line);
+}
+
+/* Universal Scrollbar Reset: Scrollable without visible scrollbars across all pages */
+html,
+body,
+#root,
+.app-shell,
+.app-main,
+.page-content,
+table,
+tbody,
+.table-scroll,
+.table-scroll-container,
+div:has(> table),
+div:has(table),
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+::-webkit-scrollbar,
+*::-webkit-scrollbar,
+table::-webkit-scrollbar,
+tbody::-webkit-scrollbar,
+.table-scroll::-webkit-scrollbar,
+.table-scroll-container::-webkit-scrollbar,
+div:has(> table)::-webkit-scrollbar,
+div:has(table)::-webkit-scrollbar {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
+}
