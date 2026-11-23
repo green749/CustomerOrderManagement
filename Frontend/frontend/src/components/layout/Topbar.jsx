@@ -84,18 +84,46 @@ export function Topbar({ onMenuClick }) {
           transform: 'translate(-50%, -50%)',
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
+          gap: 9,
           pointerEvents: 'none',
+          padding: '5px 18px',
+          borderRadius: 24,
+          background: theme === 'dark'
+            ? 'linear-gradient(135deg, rgba(147, 51, 234, 0.18) 0%, rgba(249, 115, 22, 0.12) 100%)'
+            : 'linear-gradient(135deg, rgba(111, 61, 186, 0.08) 0%, rgba(249, 115, 22, 0.07) 100%)',
+          border: theme === 'dark'
+            ? '1.5px solid rgba(168, 85, 247, 0.35)'
+            : '1.5px solid rgba(111, 61, 186, 0.25)',
+          boxShadow: theme === 'dark'
+            ? '0 2px 14px rgba(168, 85, 247, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+            : '0 2px 12px rgba(111, 61, 186, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          transition: 'all 0.2s ease',
         }}
       >
         <span
           style={{
-            fontSize: 16,
-            fontWeight: 700,
-            letterSpacing: '-0.01em',
-            color: 'var(--text-primary)',
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #a855f7, #f97316)',
+            boxShadow: theme === 'dark'
+              ? '0 0 10px rgba(168, 85, 247, 0.9)'
+              : '0 0 8px rgba(111, 61, 186, 0.6)',
+            display: 'inline-block',
+            flexShrink: 0,
+          }}
+        />
+        <span
+          style={{
+            fontSize: 15,
+            fontWeight: 800,
+            letterSpacing: '0.01em',
             fontFamily: "'Montserrat', sans-serif",
             whiteSpace: 'nowrap',
+            color: theme === 'dark' ? '#d8b4fe' : '#581c87',
+            display: 'inline-block',
           }}
         >
           Customer Order Management
