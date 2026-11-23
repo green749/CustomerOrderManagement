@@ -27,7 +27,7 @@ services:
       - key: COOKIE_SAMESITE
         value: "lax"
       - key: CORS_ORIGINS
-        value: "https://manufacturing-customer-order-agent.onrender.com,http://localhost:5173"
+        value: "https://manufacturing-customer-order-agent.onrender.com,http://localhost:5173,https://customer-order-management-two.vercel.app"
       - key: DOMO_SUBDOMAIN
         value: gwcteq-partner
       - key: DOMO_TOKEN

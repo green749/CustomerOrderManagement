@@ -47,7 +47,10 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     cookie_secure: bool = False
     cookie_samesite: str = "lax"
-    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+    cors_origins: str = (
+        "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,"
+        "https://customer-order-management-two.vercel.app"
+    )
 
     # Rate Limiting
     rate_limit_login_max: int = 10
