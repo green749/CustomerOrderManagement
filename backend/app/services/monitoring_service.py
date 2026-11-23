@@ -355,11 +355,15 @@ class MonitoringService:
                     for r in risks:
                         r["result_source"] = "RULES" if not use_agentic else "RULES_FALLBACK"
 
+                # Sort risks by severity descending so the most critical risk is evaluated first
+                _SEV_MAP = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+                risks.sort(key=lambda r: _SEV_MAP.get(r.get("severity", "LOW"), 1), reverse=True)
+
                 total_risks += len(risks)
 
                 # Process and persist alerts for this order
                 for risk_dict in risks:
-                    created = cls._record_risk_alert(db, mon_rec, risk_dict, prefetch_data=prefetch_data, force_notify=False)
+                    created = cls._record_risk_alert(db, mon_rec, risk_dict, prefetch_data=prefetch_data, force_notify=is_manual)
                     if created:
                         alerts_created_or_updated += 1
 
@@ -1111,25 +1115,39 @@ class MonitoringService:
                     cs_default = os.getenv("DEFAULT_ALERT_EMAIL", "cs-lead@manufacturing.internal")
                     cs_email, cs_active = prefetch_data.get("cs_contact", (cs_default, True))
                     cs_key = (existing.id, "CUSTOMER_SERVICE", cs_email.strip().lower())
-                    if cs_active and cs_email:
-                        if force_notify or (cs_key not in prefetch_data.get("sent_logs", set())):
-                            prefetch_data["pending_notifications"].append(EmailService.build_cs_notification_dict(
-                                alert=existing, customer_name=cust_name, required_date=req_date, approved_date=app_date,
-                                estimated_achievable_date=app_date, cs_email=cs_email
-                            ))
-                            prefetch_data.get("sent_logs", set()).add(cs_key)
-                            sent_any = True
+
+                    # Per-order deduplication: ensures exactly 1 CS alert and 1 OP alert per department per order
+                    order_cs_notified = prefetch_data.setdefault("order_cs_notified", set())
+                    order_op_notified = prefetch_data.setdefault("order_op_notified", set())
+                    op_order_dept_key = (order_id, existing.department.upper())
+
+                    should_send_cs = (
+                        (cs_key not in prefetch_data.get("sent_logs", set()))
+                        or (force_notify and order_id not in order_cs_notified)
+                    )
+                    if cs_active and cs_email and should_send_cs:
+                        prefetch_data["pending_notifications"].append(EmailService.build_cs_notification_dict(
+                            alert=existing, customer_name=cust_name, required_date=req_date, approved_date=app_date,
+                            estimated_achievable_date=app_date, cs_email=cs_email
+                        ))
+                        prefetch_data.get("sent_logs", set()).add(cs_key)
+                        order_cs_notified.add(order_id)
+                        sent_any = True
 
                     op_email, op_active = prefetch_data.get("dept_contacts", {}).get(existing.department.upper(), (default_alert, True))
                     op_key = (existing.id, "OPERATIONAL", op_email.strip().lower())
-                    if op_active and op_email:
-                        if force_notify or (op_key not in prefetch_data.get("sent_logs", set())):
-                            prefetch_data["pending_notifications"].append(EmailService.build_op_notification_dict(
-                                alert=existing, customer_name=cust_name, product_name=prod_name, product_qty=prod_qty,
-                                required_date=req_date, approved_date=app_date, op_email=op_email
-                            ))
-                            prefetch_data.get("sent_logs", set()).add(op_key)
-                            sent_any = True
+                    should_send_op = (
+                        (op_key not in prefetch_data.get("sent_logs", set()))
+                        or (force_notify and op_order_dept_key not in order_op_notified)
+                    )
+                    if op_active and op_email and should_send_op:
+                        prefetch_data["pending_notifications"].append(EmailService.build_op_notification_dict(
+                            alert=existing, customer_name=cust_name, product_name=prod_name, product_qty=prod_qty,
+                            required_date=req_date, approved_date=app_date, op_email=op_email
+                        ))
+                        prefetch_data.get("sent_logs", set()).add(op_key)
+                        order_op_notified.add(op_order_dept_key)
+                        sent_any = True
                 else:
                     db.commit()
                     cs_email, cs_active = EmailService.get_customer_service_recipient(db)
@@ -1233,16 +1251,23 @@ class MonitoringService:
             cs_default = os.getenv("DEFAULT_ALERT_EMAIL", "cs-lead@manufacturing.internal")
             op_email, op_active = prefetch_data.get("dept_contacts", {}).get(dept.upper(), (default_alert, True))
             cs_email, cs_active = prefetch_data.get("cs_contact", (cs_default, True))
-            if op_active and op_email:
+            order_cs_notified = prefetch_data.setdefault("order_cs_notified", set())
+            order_op_notified = prefetch_data.setdefault("order_op_notified", set())
+            op_order_dept_key = (order_id, dept.upper())
+
+            if op_active and op_email and (op_order_dept_key not in order_op_notified):
                 prefetch_data["pending_notifications"].append(EmailService.build_op_notification_dict(
                     alert=alert, customer_name=cust_name, product_name=prod_name, product_qty=prod_qty,
                     required_date=req_date, approved_date=app_date, op_email=op_email
                 ))
-            if cs_active and cs_email:
+                order_op_notified.add(op_order_dept_key)
+
+            if cs_active and cs_email and (order_id not in order_cs_notified):
                 prefetch_data["pending_notifications"].append(EmailService.build_cs_notification_dict(
                     alert=alert, customer_name=cust_name, required_date=req_date, approved_date=app_date,
                     estimated_achievable_date=app_date, cs_email=cs_email
                 ))
+                order_cs_notified.add(order_id)
         else:
             EmailService.send_operational_risk_notification(
                 db=db, alert=alert, customer_name=cust_name, product_name=prod_name,

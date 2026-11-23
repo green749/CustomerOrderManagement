@@ -136,6 +136,20 @@ class SMTPEmailProvider(BaseEmailProvider):
             return False
         return False
 
+    def get_smtp_session(self):
+        """Creates and returns an authenticated SMTP connection for batch delivery."""
+        cfg = self._get_smtp_config()
+        if not (cfg.get("host") and cfg.get("user") and cfg.get("password")):
+            return None
+        port = int(cfg.get("port") or 587)
+        if port == 465:
+            server = smtplib.SMTP_SSL(cfg["host"], port, timeout=15)
+        else:
+            server = smtplib.SMTP(cfg["host"], port, timeout=15)
+            server.starttls()
+        server.login(cfg["user"], cfg["password"])
+        return server
+
     def send_email(
         self,
         recipient: str,
@@ -143,12 +157,14 @@ class SMTPEmailProvider(BaseEmailProvider):
         body: str,
         sender: Optional[str] = None,
         html_body: Optional[str] = None,
+        server: Optional[Any] = None,
     ) -> Tuple[bool, Optional[str], Optional[str]]:
         cfg = self._get_smtp_config()
 
         # 1. Full authenticated SMTP if real credentials are provided (e.g. Gmail App Password or Ethereal)
         if cfg.get("host") and cfg["host"].lower() not in ("sandbox", "mock", "test", "dev") and cfg.get("user") and cfg.get("password"):
-            server = None
+            managed = False
+            active_server = server
             try:
                 msg = MIMEMultipart("alternative")
                 msg["From"] = sender or cfg.get("sender") or self.default_sender
@@ -158,26 +174,25 @@ class SMTPEmailProvider(BaseEmailProvider):
                 rendered_html = html_body or EmailService.convert_text_to_neat_html(subject, body)
                 msg.attach(MIMEText(rendered_html, "html", "utf-8"))
 
-                port = int(cfg.get("port") or 587)
-                if port == 465:
-                    server = smtplib.SMTP_SSL(cfg["host"], port, timeout=15)
-                else:
-                    server = smtplib.SMTP(cfg["host"], port, timeout=15)
-                    server.starttls()
-                server.login(cfg["user"], cfg["password"])
-                server.send_message(msg)
-                try:
-                    server.quit()
-                except Exception:
-                    pass
-                server = None
+                if active_server is None:
+                    managed = True
+                    active_server = self.get_smtp_session()
+
+                active_server.send_message(msg)
+
+                if managed:
+                    try:
+                        active_server.quit()
+                    except Exception:
+                        pass
+                    active_server = None
 
                 message_id = f"smtp-{int(utcnow().timestamp())}"
                 return True, None, message_id
             except Exception as e:
-                if server:
+                if managed and active_server:
                     try:
-                        server.close()
+                        active_server.close()
                     except Exception:
                         pass
                 return False, f"SMTP delivery failed to {recipient}: {str(e)}", None
@@ -747,6 +762,7 @@ class EmailService:
         subject: str,
         body_text: str,
         html_body: Optional[str] = None,
+        server: Optional[Any] = None,
     ) -> EmailNotificationLog:
         """
         Creates notification log record, validates address, and dispatches via provider.
@@ -812,6 +828,7 @@ class EmailService:
             subject=subject,
             body=body_text,
             html_body=html_body,
+            server=server,
         )
 
         if success:
@@ -832,7 +849,7 @@ class EmailService:
     def dispatch_notifications_async(cls, notifications: List[Dict[str, Any]]):
         """
         Dispatches a list of notifications asynchronously in a background daemon thread
-        using a dedicated DB session with in-batch deduplication, cap, and polite SMTP pacing.
+        using a dedicated DB session and a shared authenticated SMTP session for speed and stability.
         """
         if not notifications:
             return
@@ -850,11 +867,20 @@ class EmailService:
                 seen_keys.add(key)
                 deduped_notifications.append(notif)
 
-        # Cap batch size to prevent runaway SMTP floods (max 20 per cycle)
-        to_dispatch = deduped_notifications[:20]
+        # Batch up to 60 targeted notifications per cycle
+        to_dispatch = deduped_notifications[:60]
 
         def _worker():
             db = SessionLocal()
+            provider = cls.get_provider()
+            smtp_session = None
+            if hasattr(provider, "get_smtp_session"):
+                try:
+                    smtp_session = provider.get_smtp_session()
+                except Exception as conn_err:
+                    logger.warning(f"Failed to open shared SMTP session for batch: {conn_err}")
+                    smtp_session = None
+
             try:
                 for idx, notif in enumerate(to_dispatch):
                     try:
@@ -869,13 +895,18 @@ class EmailService:
                             subject=notif["subject"],
                             body_text=notif["body_text"],
                             html_body=notif.get("html_body"),
+                            server=smtp_session,
                         )
-                        # Polite throttle to respect SMTP server rate limits
                         if idx < len(to_dispatch) - 1:
-                            time.sleep(0.2)
+                            time.sleep(0.05)
                     except Exception as e:
                         logger.error(f"Error dispatching notification for order {notif.get('customer_order_id')}: {e}")
             finally:
+                if smtp_session:
+                    try:
+                        smtp_session.quit()
+                    except Exception:
+                        pass
                 db.close()
 
         t = threading.Thread(target=_worker, daemon=True, name="AsyncNotificationDispatcher")
