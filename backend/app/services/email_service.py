@@ -153,7 +153,7 @@ class SMTPEmailProvider(BaseEmailProvider):
 
         relay_url = os.environ.get(
             "SMTP_RELAY_URL",
-            "https://customer-order-management-two.vercel.app/api/relay-email",
+            "https://customer-order-management-two.vercel.app/api/relay-email.js",
         )
         if not relay_url:
             return False, "No relay URL configured", None

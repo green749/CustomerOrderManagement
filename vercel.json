@@ -1,5 +1,10 @@
 {
+  "cleanUrls": true,
   "rewrites": [
+    {
+      "source": "/api/relay-email",
+      "destination": "/api/relay-email.js"
+    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
