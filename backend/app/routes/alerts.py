@@ -175,27 +175,80 @@ def record_customer_communication(
     )
 
 
-@alerts_router.get("/notifications", response_model=List[EmailNotificationResponse])
+@alerts_router.get("/notifications")
 def list_email_notifications(
     customer_order_id: Optional[str] = Query(None),
     recipient_category: Optional[str] = Query(None),
-    limit: int = Query(50, ge=1, le=200),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=200),
+    limit: Optional[int] = Query(None, ge=1, le=500),
+    paginated: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List email notification dispatch logs with recipient category and delivery status."""
-    q = db.query(EmailNotificationLog)
-    if customer_order_id:
-        q = q.filter(EmailNotificationLog.customer_order_id == customer_order_id)
-    if recipient_category:
-        q = q.filter(EmailNotificationLog.recipient_category == recipient_category.upper().strip())
+    """List email notification dispatch logs with recipient category, status, search, and optional pagination."""
+    import math
+    from sqlalchemy import or_, func
+
+    base_q = db.query(EmailNotificationLog)
 
     # Operational department users only see their department's notifications
     user_role = (current_user.role or "").lower().strip()
     if user_role == "operational" and current_user.department:
-        q = q.filter(EmailNotificationLog.department == current_user.department.upper().strip())
+        base_q = base_q.filter(EmailNotificationLog.department == current_user.department.upper().strip())
 
-    return q.order_by(EmailNotificationLog.created_at.desc()).limit(limit).all()
+    q = base_q
+    if isinstance(customer_order_id, str) and customer_order_id.strip():
+        q = q.filter(EmailNotificationLog.customer_order_id == customer_order_id.strip())
+    if isinstance(recipient_category, str) and recipient_category.upper().strip() != "ALL":
+        q = q.filter(EmailNotificationLog.recipient_category == recipient_category.upper().strip())
+    if isinstance(status_filter, str) and status_filter.upper().strip() != "ALL":
+        q = q.filter(EmailNotificationLog.status == status_filter.upper().strip())
+    if isinstance(search, str) and search.strip():
+        term = f"%{search.strip().lower()}%"
+        q = q.filter(
+            or_(
+                func.lower(EmailNotificationLog.customer_order_id).like(term),
+                func.lower(EmailNotificationLog.recipient_email).like(term),
+                func.lower(EmailNotificationLog.subject).like(term),
+                func.lower(EmailNotificationLog.department).like(term),
+            )
+        )
+
+    if paginated:
+        total = q.count()
+        total_pages = max(1, math.ceil(total / page_size))
+        items = q.order_by(EmailNotificationLog.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+
+        total_unfiltered = base_q.count()
+        sent_count = base_q.filter(EmailNotificationLog.status == "SENT").count()
+        failed_count = base_q.filter(EmailNotificationLog.status == "FAILED").count()
+        cust_count = base_q.filter(EmailNotificationLog.recipient_category == "CUSTOMER").count()
+        cs_count = base_q.filter(EmailNotificationLog.recipient_category == "CUSTOMER_SERVICE").count()
+        op_count = base_q.filter(EmailNotificationLog.recipient_category == "OPERATIONAL").count()
+
+        items_data = [EmailNotificationResponse.model_validate(item).model_dump(mode="json") for item in items]
+        return {
+            "items": items_data,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "counts": {
+                "total": total_unfiltered,
+                "sent": sent_count,
+                "failed": failed_count,
+                "customer": cust_count,
+                "cs": cs_count,
+                "operational": op_count,
+            },
+        }
+
+    effective_limit = limit or page_size or 50
+    items = q.order_by(EmailNotificationLog.created_at.desc()).limit(effective_limit).all()
+    return [EmailNotificationResponse.model_validate(item).model_dump(mode="json") for item in items]
 
 
 @alerts_router.get("/contacts", response_model=List[DepartmentContactResponse])
