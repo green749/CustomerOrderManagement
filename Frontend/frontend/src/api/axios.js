@@ -1,6 +1,13 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+let rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim()
+if (rawBaseUrl.endsWith('/')) {
+  rawBaseUrl = rawBaseUrl.slice(0, -1)
+}
+if (rawBaseUrl.endsWith('/api')) {
+  rawBaseUrl = rawBaseUrl.slice(0, -4)
+}
+const API_BASE_URL = rawBaseUrl
 let accessTokenInMemory
 
 export const api = axios.create({
