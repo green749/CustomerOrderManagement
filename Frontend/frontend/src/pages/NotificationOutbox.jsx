@@ -27,6 +27,24 @@ import {
 import { agentsApi } from '../api/agents.api'
 import { useToast } from '../context/ToastContext'
 
+function getPageNumbers(current, total, maxVisible = 5) {
+  if (!total || total <= 0) return [1]
+  if (total <= maxVisible) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+  let start = Math.max(1, current - Math.floor(maxVisible / 2))
+  let end = start + maxVisible - 1
+  if (end > total) {
+    end = total
+    start = Math.max(1, end - maxVisible + 1)
+  }
+  const pages = []
+  for (let p = start; p <= end; p++) {
+    pages.push(p)
+  }
+  return pages
+}
+
 export default function NotificationOutbox() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -873,12 +891,7 @@ export default function NotificationOutbox() {
             </button>
 
             {/* Quick page jumper pills */}
-            {Array.from({ length: Math.min(5, totalPages) }, (_, idx) => {
-              let pageNum = currentPage - 2 + idx
-              if (pageNum < 1) pageNum = idx + 1
-              if (pageNum > totalPages) pageNum = totalPages - 4 + idx
-              if (pageNum < 1 || pageNum > totalPages) return null
-
+            {getPageNumbers(currentPage, totalPages, 5).map((pageNum) => {
               const isActive = pageNum === currentPage
               return (
                 <button
