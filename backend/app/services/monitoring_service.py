@@ -736,8 +736,12 @@ class MonitoringService:
             })
 
         # ---------------------------------------------------------------------
-        # 5. QMS / QUALITY RELEASE & GENEALOGY HOLDS
+        # 5. QMS / QUALITY RELEASE & GENEALOGY HOLDS (Live Agent 08 & Vision AI)
         # ---------------------------------------------------------------------
+        qms_mesh = mesh.get("qms", {})
+        live_q_by_po = qms_mesh.get("by_po", {})
+        live_open_ncrs = qms_mesh.get("open_ncrs", [])
+
         if prod_ids:
             if prefetch_data and "inspections" in prefetch_data:
                 inspections = [qi for po_id in prod_ids for qi in prefetch_data["inspections"].get(po_id, [])]
@@ -750,25 +754,57 @@ class MonitoringService:
             scraps = [i for i in inspections if i.disposition == "SCRAP"]
             reworks = [i for i in inspections if i.disposition == "REWORK"]
 
-            if scraps:
+            # Also check live Agent 08 database for these POs
+            agent08_holds = []
+            agent08_scraps = []
+            agent08_genealogy = []
+            for p_id in prod_ids:
+                p_records = live_q_by_po.get(p_id, [])
+                for rec in p_records:
+                    if "disposition" in rec:
+                        if rec.get("disposition") == "HOLD":
+                            agent08_holds.append(rec)
+                        elif rec.get("disposition") == "SCRAP":
+                            agent08_scraps.append(rec)
+                    elif "event_type" in rec:
+                        agent08_genealogy.append(rec)
+
+            if scraps or agent08_scraps:
+                sc = agent08_scraps[0] if agent08_scraps else {}
+                sc_insp = sc.get("inspection_id", "QI-SCRAP")
                 risks.append({
                     "department": "QMS",
                     "risk_category": "QUALITY_SCRAP_EVENT",
                     "severity": "CRITICAL",
                     "title": f"Quality scrap recorded on order {order_id}",
-                    "description": f"{len(scraps)} quality inspection(s) marked SCRAP for linked production run.",
+                    "description": f"Agent 08 (Quality & Traceability Agent) reports scrap on inspection {sc_insp} for linked production run ({len(scraps) + len(agent08_scraps)} total scrap events).",
                     "delivery_impact": "Quantity shortage requires immediate rework or remanufacturing batch.",
                     "recommended_action": "Release emergency replenishment work order in MES.",
                 })
-            elif holds:
+            elif holds or agent08_holds:
+                hd = agent08_holds[0] if agent08_holds else {}
+                hd_insp = hd.get("inspection_id", "QI-HOLD")
+                hd_station = hd.get("station_id", "ST-SMT")
+                hd_defect = hd.get("defect_code", "DEFECT")
                 risks.append({
                     "department": "QMS",
                     "risk_category": "QUALITY_HOLD",
                     "severity": "HIGH",
                     "title": f"Quality hold placed on order {order_id}",
-                    "description": f"{len(holds)} active inspection hold(s) pending disposition review.",
+                    "description": f"Agent 08 reports active inspection hold {hd_insp} at station {hd_station} (Defect: {hd_defect}). {len(holds) + len(agent08_holds)} active inspection hold(s) pending disposition review.",
                     "delivery_impact": "Quality release blocked; units cannot be staged for dispatch.",
                     "recommended_action": "Expedite Quality Engineering containment review and test verification.",
+                })
+            elif agent08_genealogy:
+                ge = agent08_genealogy[0]
+                risks.append({
+                    "department": "QMS",
+                    "risk_category": "GENEALOGY_EXCEPTION",
+                    "severity": "HIGH",
+                    "title": f"Genealogy exception flagged by Traceability Agent 08 for order {order_id}",
+                    "description": f"Agent 08 reports genealogy event {ge.get('genealogy_event_id')} ({ge.get('event_type')} on component {ge.get('material_id', 'MAT')}, station {ge.get('station_id')}). Complete: {ge.get('genealogy_complete')}.",
+                    "delivery_impact": "Quality release certificate blocked; unit cannot be staged for dispatch.",
+                    "recommended_action": f"Audit serial component lineage for {ge.get('serial_number', 'unit')} and verify in MES.",
                 })
             elif reworks:
                 risks.append({
@@ -784,7 +820,6 @@ class MonitoringService:
         # Multi-agent mesh check: Vision AI Inspection Agent & Agent 08 (Traceability & Genealogy)
         has_qms = any(r["department"] == "QMS" for r in risks)
         if not has_qms:
-            qms_mesh = mesh.get("qms", {})
             vision_ai = qms_mesh.get("vision_ai", {})
             pcode = (order.product_id or "").upper() if order else ""
             vai_prod_data = vision_ai.get("by_product", {}).get(pcode) or {}
@@ -809,6 +844,18 @@ class MonitoringService:
                     "description": f"Vision AI Inspection Agent flagged {outcome} for {pcode}: {vai_disp.get('ai_explanation', 'Automated optical detection detected surface defect exceeding tolerance.')} {cat_name} detected on {zone} ({view} view) with {conf}% AI confidence.",
                     "delivery_impact": f"Quality release blocked by Vision AI Agent; {outcome.lower()} protocol active, units cannot proceed to final packing.",
                     "recommended_action": f"Review inspection session {vai_disp.get('session_id', 'SES-VAI')} in Vision AI portal; execute quality approval override or route unit to optical rework.",
+                })
+            # 5b. Check Agent 08 Open NCRs / CAPAs
+            elif live_open_ncrs:
+                top_ncr = live_open_ncrs[0]
+                risks.append({
+                    "department": "QMS",
+                    "risk_category": "QUALITY_HOLD",
+                    "severity": "CRITICAL" if top_ncr.get("capa_status") == "OPEN" else "HIGH",
+                    "title": f"Open NCR CAPA investigation {top_ncr.get('ncr_id')} flagged by Quality Agent 08 for order {order_id}",
+                    "description": f"Agent 08 reports active CAPA {top_ncr.get('ncr_id')} (Root cause: {top_ncr.get('root_cause_category')}, Containment: {top_ncr.get('containment_action')}, Due: {top_ncr.get('capa_due_date')}, Status: {top_ncr.get('capa_status')}). Affects quality lot release for model {pcode or 'portfolio'}.",
+                    "delivery_impact": "Quality release certificate blocked pending CAPA containment sign-off.",
+                    "recommended_action": f"Enforce containment action '{top_ncr.get('containment_action')}' and escalate CAPA {top_ncr.get('ncr_id')} resolution to Quality Assurance Lead.",
                 })
             else:
                 genealogy_ev = (qms_mesh.get("by_product", {}).get(pcode) or [None])[0]

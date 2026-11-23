@@ -50,12 +50,17 @@ AGENT_REGISTRY = {
     "AGENT_08": {
         "id": "AGENT_08",
         "code": "TRACEABILITY",
-        "name": "Product Traceability Agent",
+        "name": "Quality & Product Traceability Agent",
         "department": "QMS / MES",
         "owner": "Quality Assurance & Genealogy",
         "env_var": "AGENT_08_TRACEABILITY_DB_URL",
-        "category": "Genealogy & Batch Tracking",
-        "primary_tables": ["serial_genealogy", "component_trace", "lot_history"],
+        "category": "Quality Inspection & Genealogy Tracking",
+        "primary_tables": [
+            "fact_quality_inspection",
+            "fact_ncr_capa",
+            "fact_product_genealogy_event",
+            "dim_defect_code",
+        ],
     },
     "AGENT_09": {
         "id": "AGENT_09",
@@ -168,6 +173,11 @@ def _get_read_only_engine(agent_id: str):
         return None
 
     db_url = os.getenv(meta["env_var"])
+    if not db_url and agent_id == "AGENT_08":
+        db_url = (
+            os.getenv("QUALITY_GENEALOGY_DB_URL")
+            or "postgresql://neondb_owner:npg_0VrFXEB2pCNQ@ep-snowy-sea-aoujn0yz-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+        )
     if not db_url or "neon.tech" not in db_url:
         return None
 
@@ -197,6 +207,11 @@ class AgentDatabaseService:
     @staticmethod
     def _inspect_single_agent(agent_id: str, meta: Dict[str, Any]) -> Dict[str, Any]:
         db_url = os.getenv(meta["env_var"])
+        if not db_url and agent_id == "AGENT_08":
+            db_url = (
+                os.getenv("QUALITY_GENEALOGY_DB_URL")
+                or "postgresql://neondb_owner:npg_0VrFXEB2pCNQ@ep-snowy-sea-aoujn0yz-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+            )
         has_url = bool(db_url and "neon.tech" in db_url)
 
         host = "Not Configured"
@@ -277,6 +292,29 @@ class AgentDatabaseService:
                                 }
                             except Exception as ve:
                                 logger.warning(f"Vision AI metrics read error: {ve}")
+                        elif agent_id == "AGENT_08":
+                            try:
+                                insp_cnt = conn.execute(text("SELECT count(*) FROM fact_quality_inspection;")).scalar() or 0
+                                hold_cnt = conn.execute(text("SELECT count(*) FROM fact_quality_inspection WHERE disposition = 'HOLD';")).scalar() or 0
+                                scrap_cnt = conn.execute(text("SELECT count(*) FROM fact_quality_inspection WHERE disposition = 'SCRAP';")).scalar() or 0
+                                ncr_cnt = conn.execute(text("SELECT count(*) FROM fact_ncr_capa;")).scalar() or 0
+                                open_ncr_cnt = conn.execute(text("SELECT count(*) FROM fact_ncr_capa WHERE capa_status != 'CLOSED';")).scalar() or 0
+                                gen_cnt = conn.execute(text("SELECT count(*) FROM fact_product_genealogy_event;")).scalar() or 0
+                                incomp_gen_cnt = conn.execute(text("SELECT count(*) FROM fact_product_genealogy_event WHERE genealogy_complete = false;")).scalar() or 0
+                                def_code_cnt = conn.execute(text("SELECT count(*) FROM dim_defect_code;")).scalar() or 0
+
+                                info["live_metrics"] = {
+                                    "quality_inspections": insp_cnt,
+                                    "inspection_holds": hold_cnt,
+                                    "scrap_inspections": scrap_cnt,
+                                    "total_ncr_capas": ncr_cnt,
+                                    "open_ncrs": open_ncr_cnt,
+                                    "genealogy_events": gen_cnt,
+                                    "incomplete_genealogy": incomp_gen_cnt,
+                                    "defect_codes": def_code_cnt,
+                                }
+                            except Exception as qe:
+                                logger.warning(f"Agent 08 metrics read error: {qe}")
                 except Exception as e:
                     if agent_id == "AGENT_VISION_AI":
                         try:
@@ -528,6 +566,187 @@ class AgentDatabaseService:
                 return {"connected": False, "error": str(le)}
 
     @staticmethod
+    def get_quality_traceability_live_status() -> Dict[str, Any]:
+        """
+        Query live Quality & Product Traceability Agent (Agent 08) database in real time.
+        Returns active inspection holds, open NCR/CAPAs, incomplete genealogy events,
+        and defect code taxonomy. Strictly read-only.
+        """
+        engine = _get_read_only_engine("AGENT_08")
+        if not engine:
+            return {"connected": False, "error": "Agent 08 database engine not available"}
+
+        try:
+            with engine.connect() as conn:
+                # 1. Fetch active inspection holds / scraps / reworks
+                hold_rows = conn.execute(text("""
+                    SELECT inspection_id, inspection_ts, plant_id, line_id, station_id,
+                           product_id, serial_number, production_order_id, inspection_stage,
+                           defect_code, result, severity, disposition, measurement_value
+                    FROM fact_quality_inspection
+                    WHERE disposition IN ('HOLD', 'SCRAP', 'REWORK') OR result = 'FAIL'
+                    ORDER BY inspection_ts DESC
+                    LIMIT 20;
+                """)).mappings().all()
+
+                active_holds = [dict(r) for r in hold_rows]
+
+                # 2. Fetch open NCR / CAPA investigations
+                ncr_rows = conn.execute(text("""
+                    SELECT ncr_id, inspection_id, opened_ts, defect_code,
+                           root_cause_category, containment_action, owner_id,
+                           capa_due_date, capa_status, effectiveness_check
+                    FROM fact_ncr_capa
+                    WHERE capa_status != 'CLOSED'
+                    ORDER BY opened_ts DESC
+                    LIMIT 20;
+                """)).mappings().all()
+
+                open_ncrs = [dict(r) for r in ncr_rows]
+
+                # 3. Fetch genealogy exception events
+                gen_rows = conn.execute(text("""
+                    SELECT genealogy_event_id, event_ts, plant_id, serial_number,
+                           production_order_id, product_id, material_id, material_lot_id,
+                           supplier_id, station_id, operation_sequence, event_type,
+                           quantity, genealogy_complete
+                    FROM fact_product_genealogy_event
+                    WHERE event_type IN ('HOLD', 'SCRAP', 'REWORK', 'QUARANTINE') OR genealogy_complete = false
+                    ORDER BY event_ts DESC
+                    LIMIT 20;
+                """)).mappings().all()
+
+                genealogy_exceptions = [dict(r) for r in gen_rows]
+
+                # 4. Fetch defect taxonomy
+                defect_rows = conn.execute(text("""
+                    SELECT defect_code, defect_name, defect_category, severity, disposition_default
+                    FROM dim_defect_code
+                    ORDER BY severity DESC, defect_code ASC
+                    LIMIT 20;
+                """)).mappings().all()
+
+                defect_codes = [dict(r) for r in defect_rows]
+
+                # 5. Record counts
+                insp_cnt = conn.execute(text("SELECT count(*) FROM fact_quality_inspection;")).scalar() or 0
+                ncr_cnt = conn.execute(text("SELECT count(*) FROM fact_ncr_capa;")).scalar() or 0
+                gen_cnt = conn.execute(text("SELECT count(*) FROM fact_product_genealogy_event;")).scalar() or 0
+                def_cnt = conn.execute(text("SELECT count(*) FROM dim_defect_code;")).scalar() or 0
+
+                return {
+                    "connected": True,
+                    "agent": "Agent 08: Quality & Product Traceability Agent",
+                    "owner": "Quality Assurance & Product Genealogy",
+                    "total_inspections": insp_cnt,
+                    "total_ncrs": ncr_cnt,
+                    "total_genealogy_events": gen_cnt,
+                    "total_defect_codes": def_cnt,
+                    "active_holds_count": len(active_holds),
+                    "open_ncrs_count": len(open_ncrs),
+                    "genealogy_exceptions_count": len(genealogy_exceptions),
+                    "active_holds": active_holds,
+                    "open_ncrs": open_ncrs,
+                    "genealogy_exceptions": genealogy_exceptions,
+                    "defect_codes": defect_codes,
+                    "mode": "STRICT_READ_ONLY",
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }
+        except Exception as e:
+            logger.error(f"Error querying Agent 08 database: {e}")
+            return {"connected": False, "error": str(e)}
+
+    @staticmethod
+    def get_quality_and_genealogy_for_orders(
+        production_order_ids: List[str],
+        product_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Query live Agent 08 Quality & Traceability database for specific production order IDs
+        or product model. Returns matching inspections, open NCRs, and genealogy events.
+        """
+        engine = _get_read_only_engine("AGENT_08")
+        if not engine:
+            return {"connected": False, "inspections": [], "ncrs": [], "genealogy_events": []}
+
+        try:
+            with engine.connect() as conn:
+                clean_pos = [str(p).strip().upper() for p in production_order_ids if str(p).strip()]
+                clean_pid = str(product_id).strip().upper() if product_id else None
+
+                # Query inspections
+                insp_params: Dict[str, Any] = {}
+                conditions = []
+                if clean_pos:
+                    conditions.append("production_order_id = ANY(:pos)")
+                    insp_params["pos"] = clean_pos
+                if clean_pid:
+                    conditions.append("product_id = :pid")
+                    insp_params["pid"] = clean_pid
+
+                where_str = " OR ".join(conditions) if conditions else "1=0"
+
+                i_query = f"""
+                    SELECT inspection_id, inspection_ts, plant_id, line_id, station_id,
+                           product_id, serial_number, production_order_id, inspection_stage,
+                           defect_code, result, severity, disposition, measurement_value
+                    FROM fact_quality_inspection
+                    WHERE ({where_str}) AND (disposition IN ('HOLD', 'SCRAP', 'REWORK') OR result = 'FAIL')
+                    ORDER BY inspection_ts DESC
+                    LIMIT 25;
+                """
+                insp_rows = conn.execute(text(i_query), insp_params).mappings().all()
+                inspections = [dict(r) for r in insp_rows]
+
+                # Query matching NCRs based on inspection IDs found or product
+                inspection_ids = [i["inspection_id"] for i in inspections if i.get("inspection_id")]
+                ncrs = []
+                if inspection_ids:
+                    ncr_rows = conn.execute(text("""
+                        SELECT ncr_id, inspection_id, opened_ts, defect_code,
+                               root_cause_category, containment_action, owner_id,
+                               capa_due_date, capa_status, effectiveness_check
+                        FROM fact_ncr_capa
+                        WHERE inspection_id = ANY(:insp_ids) AND capa_status != 'CLOSED'
+                        LIMIT 20;
+                    """), {"insp_ids": inspection_ids}).mappings().all()
+                    ncrs = [dict(r) for r in ncr_rows]
+                elif clean_pid:
+                    ncr_rows = conn.execute(text("""
+                        SELECT ncr.ncr_id, ncr.inspection_id, ncr.opened_ts, ncr.defect_code,
+                               ncr.root_cause_category, ncr.containment_action, ncr.owner_id,
+                               ncr.capa_due_date, ncr.capa_status, ncr.effectiveness_check
+                        FROM fact_ncr_capa ncr
+                        JOIN fact_quality_inspection qi ON ncr.inspection_id = qi.inspection_id
+                        WHERE qi.product_id = :pid AND ncr.capa_status != 'CLOSED'
+                        LIMIT 10;
+                    """), {"pid": clean_pid}).mappings().all()
+                    ncrs = [dict(r) for r in ncr_rows]
+
+                # Query genealogy events
+                g_query = f"""
+                    SELECT genealogy_event_id, event_ts, plant_id, serial_number,
+                           production_order_id, product_id, material_id, material_lot_id,
+                           station_id, event_type, quantity, genealogy_complete
+                    FROM fact_product_genealogy_event
+                    WHERE ({where_str}) AND (event_type IN ('HOLD', 'SCRAP', 'REWORK', 'QUARANTINE') OR genealogy_complete = false)
+                    ORDER BY event_ts DESC
+                    LIMIT 25;
+                """
+                gen_rows = conn.execute(text(g_query), insp_params).mappings().all()
+                genealogy_events = [dict(r) for r in gen_rows]
+
+                return {
+                    "connected": True,
+                    "inspections": inspections,
+                    "ncrs": ncrs,
+                    "genealogy_events": genealogy_events,
+                }
+        except Exception as e:
+            logger.error(f"Error querying live quality records for orders: {e}")
+            return {"connected": False, "inspections": [], "ncrs": [], "genealogy_events": [], "error": str(e)}
+
+    @staticmethod
     def get_mesh_telemetry_for_surveillance(force_refresh: bool = False, max_age_seconds: int = 300) -> Dict[str, Any]:
         """
         Gathers live operational risk signals concurrently across the 7-department agent mesh:
@@ -565,8 +784,11 @@ class AgentDatabaseService:
             },
             "qms": {
                 "genealogy_events": [],
+                "quality_inspections": [],
+                "open_ncrs": [],
                 "by_product": {},
                 "by_po": {},
+                "ncrs_by_id": {},
                 "vision_ai": {
                     "defects": [],
                     "dispositions": [],
@@ -677,23 +899,62 @@ class AgentDatabaseService:
             except Exception as e:
                 return "AGENT_07", False, str(e)[:120]
 
-        # Sub-worker 4: QMS (Agent 08 - Genealogy & Traceability Holds)
+        # Sub-worker 4: QMS (Agent 08 - Quality Assurance, NCR/CAPA & Genealogy)
         def query_agent_08():
             eng = _get_read_only_engine("AGENT_08")
             if not eng:
                 return "AGENT_08", False, "No engine"
             try:
                 with eng.connect() as conn:
-                    q_rows = conn.execute(text("""
-                        SELECT genealogy_event_id, production_order_id, product_id, material_id, event_type, quantity, station_id
-                        FROM fact_product_genealogy_events
-                        WHERE event_type IN ('HOLD', 'SCRAP', 'REWORK', 'QUARANTINE')
-                        ORDER BY event_ts DESC
-                        LIMIT 25;
+                    # 1. Quality Inspections with HOLD, SCRAP, REWORK or FAIL
+                    insp_rows = conn.execute(text("""
+                        SELECT inspection_id, plant_id, line_id, station_id, product_id,
+                               serial_number, production_order_id, inspection_stage,
+                               defect_code, result, severity, disposition, measurement_value
+                        FROM fact_quality_inspection
+                        WHERE disposition IN ('HOLD', 'SCRAP', 'REWORK') OR result = 'FAIL'
+                        ORDER BY inspection_ts DESC
+                        LIMIT 35;
                     """)).mappings().all()
+                    q_inspections = [dict(r) for r in insp_rows]
 
+                    # 2. Open NCR / CAPAs
+                    ncr_rows = conn.execute(text("""
+                        SELECT ncr_id, inspection_id, opened_ts, defect_code,
+                               root_cause_category, containment_action, owner_id,
+                               capa_due_date, capa_status, effectiveness_check
+                        FROM fact_ncr_capa
+                        WHERE capa_status != 'CLOSED'
+                        ORDER BY opened_ts DESC
+                        LIMIT 30;
+                    """)).mappings().all()
+                    q_ncrs = [dict(r) for r in ncr_rows]
+
+                    # 3. Genealogy exceptions & incomplete lineage
+                    q_rows = conn.execute(text("""
+                        SELECT genealogy_event_id, event_ts, plant_id, serial_number,
+                               production_order_id, product_id, material_id, station_id,
+                               event_type, quantity, genealogy_complete
+                        FROM fact_product_genealogy_event
+                        WHERE event_type IN ('HOLD', 'SCRAP', 'REWORK', 'QUARANTINE') OR genealogy_complete = false
+                        ORDER BY event_ts DESC
+                        LIMIT 35;
+                    """)).mappings().all()
                     q_events = [dict(r) for r in q_rows]
+
+                    telemetry["qms"]["quality_inspections"] = q_inspections
+                    telemetry["qms"]["open_ncrs"] = q_ncrs
                     telemetry["qms"]["genealogy_events"] = q_events
+
+                    # Build lookup maps by production_order_id and product_id
+                    for qi in q_inspections:
+                        po = str(qi.get("production_order_id") or "").strip().upper()
+                        pid = str(qi.get("product_id") or "").strip().upper()
+                        if po:
+                            telemetry["qms"]["by_po"].setdefault(po, []).append(qi)
+                        if pid:
+                            telemetry["qms"]["by_product"].setdefault(pid, []).append(qi)
+
                     for qe in q_events:
                         po = str(qe.get("production_order_id") or "").strip().upper()
                         pid = str(qe.get("product_id") or "").strip().upper()
@@ -702,7 +963,10 @@ class AgentDatabaseService:
                         if pid:
                             telemetry["qms"]["by_product"].setdefault(pid, []).append(qe)
 
-                return "AGENT_08", True, f"{len(q_events)} genealogy exception events"
+                    for ncr in q_ncrs:
+                        telemetry["qms"].setdefault("ncrs_by_id", {})[ncr.get("ncr_id")] = ncr
+
+                return "AGENT_08", True, f"{len(q_inspections)} quality holds/fails, {len(q_ncrs)} open NCRs, {len(q_events)} genealogy exceptions"
             except Exception as e:
                 return "AGENT_08", False, str(e)[:120]
 

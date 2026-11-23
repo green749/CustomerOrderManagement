@@ -41,6 +41,11 @@ export const connectorsApi = {
     return data
   },
 
+  async getQualityTraceabilityLive() {
+    const { data } = await api.get('/api/connectors/agent-databases/quality-genealogy/live')
+    return data
+  },
+
   async pingAgentDatabase(agentId) {
     const { data } = await api.post(`/api/connectors/agent-databases/ping?agent_id=${encodeURIComponent(agentId)}`)
     return data

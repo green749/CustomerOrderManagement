@@ -81,6 +81,23 @@ class Settings(BaseSettings):
     max_auto_actions_per_day: int = 50
     max_cost_per_cycle: float = 5.0
 
+    # External Multi-Agent Database URLs (Strictly Read-Only)
+    agent_01_prod_planning_db_url: Optional[str] = None
+    agent_03_oee_db_url: Optional[str] = None
+    agent_07_ecm_db_url: Optional[str] = None
+    agent_08_traceability_db_url: str = (
+        "postgresql://neondb_owner:npg_0VrFXEB2pCNQ@ep-snowy-sea-aoujn0yz-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+    )
+    quality_genealogy_db_url: Optional[str] = None
+    agent_09_inventory_db_url: Optional[str] = None
+    agent_10_supplier_db_url: Optional[str] = None
+    agent_12_logistics_db_url: Optional[str] = None
+    agent_13_energy_db_url: Optional[str] = None
+    agent_14_ehs_db_url: Optional[str] = None
+    agent_16_cost_db_url: Optional[str] = None
+    agent_18_customer_order_db_url: Optional[str] = None
+    vision_ai_inspection_db_url: Optional[str] = None
+
     # Domo AI
     domo_subdomain: Optional[str] = "gwcteq-partner"
     domo_token: Optional[str] = None

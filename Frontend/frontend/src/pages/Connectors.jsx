@@ -186,23 +186,23 @@ const CONNECTOR_PRESETS = [
   {
     id: 'agent-08-traceability',
     agentId: 'AGENT_08',
-    name: 'Agent 08 · Product Traceability',
+    name: 'Agent 08 · Quality & Product Traceability',
     lead: 'QMS Quality Lead',
-    category: 'QMS Genealogy & Batch Tracking',
+    category: 'QMS Quality Assurance & Product Genealogy',
     type: 'agent',
     protocol: 'PostgreSQL 16 Pooler (SSL Read-Only)',
     endpointSummary: 'PostgreSQL 16 Pooler (SSL Read-Only)',
-    recordsSummary: '31 accessible tables · serial_genealogy, component_trace, lot_history',
-    latencyMs: 517,
+    recordsSummary: '4 core tables · 34,828 quality checks · 2,862 NCR/CAPAs · 45,103 genealogy events',
+    latencyMs: 425,
     status: 'CONNECTED',
     statusBadge: 'CONNECTED',
     icon: ShieldCheck,
-    description: 'Unit serial genealogy, component batch traceability, lot history, and quarantine hold verification.',
+    description: 'Live quality inspection holds, open NCR/CAPA investigations, unit serial genealogy, defect taxonomy, and shop-floor rework tracking.',
     fields: [
-      { key: 'host', label: 'Neon Host Endpoint', placeholder: 'ep-blue-rice.neon.tech', default: '' },
+      { key: 'host', label: 'Neon Host Endpoint', placeholder: 'ep-snowy-sea-aoujn0yz-pooler.c-2.ap-southeast-1.aws.neon.tech', default: '' },
       { key: 'port', label: 'Port', placeholder: '5432', default: '5432' },
       { key: 'database', label: 'Database Name', placeholder: 'neondb', default: 'neondb' },
-      { key: 'username', label: 'Username', placeholder: 'trace_agent_ro', default: '' },
+      { key: 'username', label: 'Username', placeholder: 'neondb_owner', default: '' },
       { key: 'password', label: 'Database Password', placeholder: '••••••••••••', default: '', isSecret: true },
       { key: 'sslmode', label: 'SSL Mode', placeholder: 'require', default: 'require' },
       { key: 'security', label: 'Security Enforcement', placeholder: 'READ_ONLY', default: 'STRICT_READ_ONLY (-c default_transaction_read_only=on)' },
@@ -644,6 +644,8 @@ export default function Connectors() {
           const liveRecords =
             live.id === 'AGENT_09'
               ? `${live.table_count} tables · 2,664 snapshots · 1,396 materials · 20 critical shortages · 3 STOs`
+              : live.id === 'AGENT_08'
+              ? `${live.table_count || 4} tables · ${formatNumber(live.live_metrics?.quality_inspections || 34828)} inspections · ${formatNumber(live.live_metrics?.total_ncr_capas || 2862)} NCRs (${live.live_metrics?.open_ncrs || 2470} open) · ${formatNumber(live.live_metrics?.genealogy_events || 45103)} genealogy events`
               : live.id === 'AGENT_VISION_AI'
               ? `${live.table_count || 6} tables · ai_detection, defect_instance, disposition, approval, alerts, audit_log`
               : `${live.table_count} public tables · ${(live.primary_tables || []).slice(0, 3).join(', ')}`

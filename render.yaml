@@ -34,6 +34,10 @@ services:
         sync: false
       - key: DOMO_MODEL
         value: domo.domo_ai.domogpt-small-v2.1:anthropic
+      - key: AGENT_08_TRACEABILITY_DB_URL
+        value: "postgresql://neondb_owner:npg_0VrFXEB2pCNQ@ep-snowy-sea-aoujn0yz-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+      - key: QUALITY_GENEALOGY_DB_URL
+        value: "postgresql://neondb_owner:npg_0VrFXEB2pCNQ@ep-snowy-sea-aoujn0yz-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
       - key: FEASIBILITY_AGENT_MODE
         value: agentic
       - key: MONITORING_AGENT_MODE

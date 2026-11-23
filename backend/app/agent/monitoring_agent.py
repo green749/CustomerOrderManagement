@@ -16,7 +16,7 @@ from ..models.business import (
 )
 from ..models.operational import FactBOMComponent, DimMaterial
 from ..models.workflow import OrderMonitoringRecord, RiskAlert
-from .tools import tool_get_production_progress, tool_get_transportation_status
+from .tools import tool_get_production_progress, tool_get_transportation_status, tool_get_quality_and_genealogy
 from .prompts import AGENT_USER_PROMPT_TEMPLATE
 from .agent_loop import run_agent_loop
 
@@ -272,6 +272,7 @@ MONITORING_TOOLS = {
     "get_alert_history": tool_get_alert_history,
     "get_shipment_status": tool_get_shipment_status,
     "get_production_progress": tool_get_production_progress,
+    "get_quality_and_genealogy": tool_get_quality_and_genealogy,
     "get_agent_mesh_telemetry": tool_get_agent_mesh_telemetry,
     "get_department_agent_signals": tool_get_department_agent_signals,
 }
@@ -279,6 +280,9 @@ MONITORING_TOOLS = {
 MONITORING_TOOL_DESCRIPTIONS = """
 - detect_risks: Evaluate baseline multi-department rule-based risks for a specific customer order.
   Args: {"customer_order_id": "CO-XXXXXX"}
+
+- get_quality_and_genealogy: Retrieve live quality inspections, holds/scraps, open NCR/CAPAs, and genealogy lineage from Agent 08 Quality & Traceability Agent database.
+  Args: {"customer_order_id": "CO-XXXXXX" | null, "production_order_id": "PO-XXXXXX" | null, "product_id": "SPH-XXX" | null}
 
 - get_agent_mesh_telemetry: Retrieve live operational signals from the autonomous agent network across all 7 departments (Agent 09 MMS, Agent 03 MES, Agent 07 PLM, Agent 08 QMS, Agent 12 TMS, Agent 16 ERP).
   Args: {}

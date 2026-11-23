@@ -102,11 +102,13 @@ def get_connected_agent_databases(
     try:
         summary = AgentDatabaseService.get_all_connectors_summary()
         inventory_live = AgentDatabaseService.get_inventory_agent_live_status()
+        quality_live = AgentDatabaseService.get_quality_traceability_live_status()
         return {
             "success": True,
             "security_mode": "STRICT_READ_ONLY_ENFORCED",
             "agent_databases": summary,
             "inventory_agent_status": inventory_live,
+            "quality_traceability_status": quality_live,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as e:
@@ -131,6 +133,27 @@ def get_inventory_agent_live(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to query Agent 09 live status: {str(e)}")
+
+
+@connectors_router.get("/agent-databases/quality-genealogy/live")
+@connectors_router.get("/agent-databases/traceability/live")
+def get_quality_traceability_live(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Query Agent 08 Quality & Product Traceability database in real time.
+    Returns active inspection holds, open NCR/CAPAs, genealogy exception events, and defect codes.
+    """
+    from ..services.agent_db_service import AgentDatabaseService
+    try:
+        live = AgentDatabaseService.get_quality_traceability_live_status()
+        return {
+            "success": True,
+            "data": live,
+            "mode": "READ_ONLY",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to query Agent 08 live status: {str(e)}")
 
 
 @connectors_router.get("/agent-databases/vision-ai/live")

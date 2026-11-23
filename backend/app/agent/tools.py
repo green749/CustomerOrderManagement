@@ -378,6 +378,59 @@ def tool_get_transportation_status(
     return {"shipments": items}
 
 
+def tool_get_quality_and_genealogy(
+    db: Session,
+    customer_order_id: Optional[str] = None,
+    production_order_id: Optional[str] = None,
+    product_id: Optional[str] = None,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    """
+    Query live Agent 08 Quality & Product Traceability database for real-time
+    quality inspections (dispositions, holds, scraps), open NCR/CAPA investigations,
+    and product genealogy events.
+    """
+    from ..services.agent_db_service import AgentDatabaseService
+    from ..models.business import FactProductionOrder, FactCustomerOrder
+
+    po_ids = []
+    if production_order_id and str(production_order_id).strip():
+        po_ids.append(str(production_order_id).strip().upper())
+
+    clean_cid = str(customer_order_id).strip().upper() if customer_order_id else None
+    derived_pid = str(product_id).strip().upper() if product_id else None
+
+    if clean_cid:
+        pos = db.query(FactProductionOrder).filter(
+            FactProductionOrder.customer_order_id == clean_cid
+        ).all()
+        for p in pos:
+            if p.production_order_id and p.production_order_id not in po_ids:
+                po_ids.append(p.production_order_id)
+        if not derived_pid:
+            order = db.query(FactCustomerOrder).filter(
+                FactCustomerOrder.customer_order_id == clean_cid
+            ).first()
+            if order and order.product_id:
+                derived_pid = order.product_id
+
+    records = AgentDatabaseService.get_quality_and_genealogy_for_orders(
+        production_order_ids=po_ids,
+        product_id=derived_pid,
+    )
+
+    return {
+        "customer_order_id": clean_cid,
+        "production_order_ids": po_ids,
+        "product_id": derived_pid,
+        "connected": records.get("connected", False),
+        "inspections": records.get("inspections", []),
+        "ncrs": records.get("ncrs", []),
+        "genealogy_events": records.get("genealogy_events", []),
+        "data_source": "AGENT_08_QUALITY_TRACEABILITY_LIVE_NEON_DB",
+    }
+
+
 AVAILABLE_TOOLS = {
     "get_order_status": tool_get_order_status,
     "list_at_risk_orders": tool_list_at_risk_orders,
@@ -386,6 +439,7 @@ AVAILABLE_TOOLS = {
     "get_inventory_availability": tool_get_inventory_availability,
     "get_production_progress": tool_get_production_progress,
     "get_transportation_status": tool_get_transportation_status,
+    "get_quality_and_genealogy": tool_get_quality_and_genealogy,
 }
 
 TOOL_DESCRIPTIONS = """
@@ -409,5 +463,8 @@ TOOL_DESCRIPTIONS = """
 
 - get_transportation_status: Check carrier transit milestones, planned ETA, and proof of delivery status.
   Args: {"customer_order_id": "CO-XXXXXX" | null, "shipment_id": "SHP-XXXXXX" | null}
+
+- get_quality_and_genealogy: Check live Agent 08 quality inspection holds, open NCR/CAPA investigations, and genealogy events.
+  Args: {"customer_order_id": "CO-XXXXXX" | null, "production_order_id": "PO-XXXXXX" | null, "product_id": "SPH-XXX" | null}
 """
 
