@@ -108,22 +108,22 @@ class Settings(BaseSettings):
 
     # Seed credentials (loaded strictly from environment variables)
     admin_email: str = "admin@manufacturing.com"
-    admin_password: str = ""
+    admin_password: str = "DevAdminSecret123!"
     admin_full_name: str = "System Administrator"
 
     demo_email: str = "demo@manufacturing.com"
-    demo_password: str = ""
+    demo_password: str = "DevDemoSecret123!"
     demo_full_name: str = "Demo Operations Manager"
 
     # Default alert routing email
-    default_alert_email: str = "alerts@manufacturing.internal"
+    default_alert_email: str = "dyfs2m763cn7s2uz@ethereal.email"
 
     # SMTP Email Configuration
-    smtp_host: Optional[str] = None
+    smtp_host: Optional[str] = "smtp.ethereal.email"
     smtp_port: int = 587
-    smtp_user: Optional[str] = None
-    smtp_password: Optional[str] = None
-    smtp_from: str = "noreply@manufacturing.internal"
+    smtp_user: Optional[str] = "dyfs2m763cn7s2uz@ethereal.email"
+    smtp_password: Optional[str] = "KFHKGSc119pe56eY4f"
+    smtp_from: str = "Manufacturing 360 <dyfs2m763cn7s2uz@ethereal.email>"
 
     @property
     def cors_origin_list(self) -> List[str]:

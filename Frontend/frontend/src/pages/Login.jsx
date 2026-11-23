@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, Sparkles } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles, Zap } from 'lucide-react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getErrorMessage } from '../utils/format'
@@ -15,6 +15,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loadingRole, setLoadingRole] = useState(null)
   const [error, setError] = useState('')
   const [validation, setValidation] = useState({})
 
@@ -38,6 +39,25 @@ export default function Login() {
       setError(getErrorMessage(requestError, 'Unable to sign in. Please check your credentials.'))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDemoLogin = async (demoEmail, demoPassword, roleKey) => {
+    setEmail(demoEmail)
+    setPassword(demoPassword)
+    setValidation({})
+    setError('')
+    setLoading(true)
+    setLoadingRole(roleKey)
+    try {
+      await login({ email: demoEmail, password: demoPassword })
+      const destination = location.state?.from?.pathname ?? '/'
+      navigate(destination, { replace: true })
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, 'Unable to sign in with demo account. Please check connection.'))
+    } finally {
+      setLoading(false)
+      setLoadingRole(null)
     }
   }
 
@@ -74,8 +94,55 @@ export default function Login() {
             <label className={`login-field${validation.email ? ' field-invalid' : ''}`}><span>Work email</span><div className="login-input-wrap"><Mail size={17} /><Input bare type="email" autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setValidation((current) => ({ ...current, email: '' })) }} placeholder="you@company.com" aria-invalid={Boolean(validation.email)} /></div>{validation.email && <small>{validation.email}</small>}</label>
             <label className={`login-field${validation.password ? ' field-invalid' : ''}`}><span>Password</span><div className="login-input-wrap"><LockKeyhole size={17} /><Input bare type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setValidation((current) => ({ ...current, password: '' })) }} placeholder="Enter your password" aria-invalid={Boolean(validation.password)} /><button type="button" className="password-toggle" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div>{validation.password && <small>{validation.password}</small>}</label>
             {error && <div className="login-error" role="alert">{error}</div>}
-            <Button type="submit" className="button-login" disabled={loading}>{loading ? 'Signing in…' : 'Sign in'} {!loading && <ArrowRight size={17} />}</Button>
+            <Button type="submit" className="button-login" disabled={loading}>{loading && !loadingRole ? 'Signing in…' : 'Sign in'} {!loading && <ArrowRight size={17} />}</Button>
           </form>
+
+          <div className="demo-login-divider">
+            <span>OR 1-CLICK DEMO LOGIN</span>
+          </div>
+
+          <div className="demo-login-group">
+            <button
+              type="button"
+              className="demo-login-card"
+              disabled={loading}
+              onClick={() => handleDemoLogin('demo@manufacturing.com', 'DevDemoSecret123!', 'demo')}
+              title="Click to sign in immediately as Demo Operations Manager"
+            >
+              <div className="demo-login-badge demo-badge-manager">
+                <Zap size={11} />
+                <span>DEMO</span>
+              </div>
+              <div className="demo-login-body">
+                <strong>Demo Operations Manager</strong>
+                <span>demo@manufacturing.com</span>
+              </div>
+              <span className="demo-login-arrow">
+                {loadingRole === 'demo' ? 'Signing in…' : <ArrowRight size={14} />}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className="demo-login-card"
+              disabled={loading}
+              onClick={() => handleDemoLogin('admin@manufacturing.com', 'DevAdminSecret123!', 'admin')}
+              title="Click to sign in immediately as System Administrator"
+            >
+              <div className="demo-login-badge demo-badge-admin">
+                <ShieldCheck size={11} />
+                <span>ADMIN</span>
+              </div>
+              <div className="demo-login-body">
+                <strong>System Administrator</strong>
+                <span>admin@manufacturing.com</span>
+              </div>
+              <span className="demo-login-arrow">
+                {loadingRole === 'admin' ? 'Signing in…' : <ArrowRight size={14} />}
+              </span>
+            </button>
+          </div>
+
           <div className="login-security"><LockKeyhole size={14} /> Secure access to your company workspace</div>
           <p className="login-no-account">Need access? Contact your workspace administrator.</p>
         </div>

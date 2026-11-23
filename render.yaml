@@ -38,6 +38,18 @@ services:
         value: "postgresql://neondb_owner:npg_0VrFXEB2pCNQ@ep-snowy-sea-aoujn0yz-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
       - key: QUALITY_GENEALOGY_DB_URL
         value: "postgresql://neondb_owner:npg_0VrFXEB2pCNQ@ep-snowy-sea-aoujn0yz-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+      - key: SMTP_HOST
+        value: smtp.ethereal.email
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        value: dyfs2m763cn7s2uz@ethereal.email
+      - key: SMTP_PASSWORD
+        value: KFHKGSc119pe56eY4f
+      - key: SMTP_FROM
+        value: "Manufacturing 360 <dyfs2m763cn7s2uz@ethereal.email>"
+      - key: DEFAULT_ALERT_EMAIL
+        value: dyfs2m763cn7s2uz@ethereal.email
       - key: FEASIBILITY_AGENT_MODE
         value: agentic
       - key: MONITORING_AGENT_MODE
@@ -47,9 +59,9 @@ services:
       - key: ADMIN_EMAIL
         value: admin@manufacturing.com
       - key: ADMIN_PASSWORD
-        sync: false
+        value: DevAdminSecret123!
       - key: DEMO_EMAIL
         value: demo@manufacturing.com
       - key: DEMO_PASSWORD
-        sync: false
+        value: DevDemoSecret123!
 

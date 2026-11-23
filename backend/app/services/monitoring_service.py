@@ -359,7 +359,7 @@ class MonitoringService:
 
                 # Process and persist alerts for this order
                 for risk_dict in risks:
-                    created = cls._record_risk_alert(db, mon_rec, risk_dict, prefetch_data=prefetch_data, force_notify=is_manual)
+                    created = cls._record_risk_alert(db, mon_rec, risk_dict, prefetch_data=prefetch_data, force_notify=False)
                     if created:
                         alerts_created_or_updated += 1
 
@@ -845,9 +845,14 @@ class MonitoringService:
                     "delivery_impact": f"Quality release blocked by Vision AI Agent; {outcome.lower()} protocol active, units cannot proceed to final packing.",
                     "recommended_action": f"Review inspection session {vai_disp.get('session_id', 'SES-VAI')} in Vision AI portal; execute quality approval override or route unit to optical rework.",
                 })
-            # 5b. Check Agent 08 Open NCRs / CAPAs
-            elif live_open_ncrs:
-                top_ncr = live_open_ncrs[0]
+            # 5b. Check Agent 08 Open NCRs / CAPAs strictly matching this order's product or PO
+            matching_ncrs = [
+                n for n in live_open_ncrs
+                if (n.get("production_order_id") and n.get("production_order_id") in prod_ids)
+                or (pcode and n.get("product_id") and n.get("product_id").upper() == pcode)
+            ]
+            if matching_ncrs:
+                top_ncr = matching_ncrs[0]
                 risks.append({
                     "department": "QMS",
                     "risk_category": "QUALITY_HOLD",
@@ -858,10 +863,13 @@ class MonitoringService:
                     "recommended_action": f"Enforce containment action '{top_ncr.get('containment_action')}' and escalate CAPA {top_ncr.get('ncr_id')} resolution to Quality Assurance Lead.",
                 })
             else:
-                genealogy_ev = (qms_mesh.get("by_product", {}).get(pcode) or [None])[0]
-                if not genealogy_ev and qms_mesh.get("genealogy_events"):
-                    genealogy_ev = qms_mesh["genealogy_events"][0]
-                if genealogy_ev:
+                matching_gen = [
+                    g for g in qms_mesh.get("genealogy_events", [])
+                    if (g.get("production_order_id") and g.get("production_order_id") in prod_ids)
+                    or (pcode and g.get("product_id") and g.get("product_id").upper() == pcode)
+                ]
+                if matching_gen:
+                    genealogy_ev = matching_gen[0]
                     risks.append({
                         "department": "QMS",
                         "risk_category": "QUALITY_HOLD",
@@ -954,8 +962,6 @@ class MonitoringService:
             plm_mesh = mesh.get("plm", {})
             pcode = (order.product_id or "").upper() if order else ""
             ecr_match = (plm_mesh.get("by_product", {}).get(pcode) or [None])[0]
-            if not ecr_match and plm_mesh.get("change_requests"):
-                ecr_match = plm_mesh["change_requests"][0]
             if ecr_match:
                 risks.append({
                     "department": "PLM",

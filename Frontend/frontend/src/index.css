@@ -751,6 +751,20 @@ div:has(table)::-webkit-scrollbar-thumb:horizontal:hover {
 .login-session-notice { background: #fff8f1; border: 1px solid #f1e4d7; border-radius: 6px; color: #96734f; font-size: 9px; line-height: 1.5; margin: -12px 0 16px; padding: 9px 10px; }
 .button-login { background: #6748c1; box-shadow: 0 5px 12px rgba(89,59,174,.16); color: #fff; font-size: 11px; justify-content: space-between; margin-top: 2px; min-height: 42px; padding: 0 13px; }
 .button-login:hover:not(:disabled) { background: #5536a9; }
+.demo-login-divider { align-items: center; display: flex; gap: 10px; margin: 18px 0 12px; }
+.demo-login-divider::before, .demo-login-divider::after { background: #e8e4f0; content: ''; flex: 1; height: 1px; }
+.demo-login-divider span { color: #8e879c; font-size: 9px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; white-space: nowrap; }
+.demo-login-group { display: flex; flex-direction: column; gap: 8px; }
+.demo-login-card { align-items: center; background: #faf9fd; border: 1px solid #e7e2f1; border-radius: 8px; cursor: pointer; display: flex; gap: 10px; padding: 9px 12px; text-align: left; transition: all .15s ease; width: 100%; }
+.demo-login-card:hover:not(:disabled) { background: #f3effc; border-color: #6748c1; box-shadow: 0 2px 8px rgba(103,72,193,.12); transform: translateY(-1px); }
+.demo-login-card:disabled { cursor: not-allowed; opacity: .6; }
+.demo-login-badge { align-items: center; border-radius: 5px; display: inline-flex; font-size: 8px; font-weight: 700; gap: 4px; letter-spacing: .3px; padding: 3px 6px; text-transform: uppercase; white-space: nowrap; }
+.demo-badge-manager { background: #ede8f9; color: #6748c1; }
+.demo-badge-admin { background: #e6f6ee; color: #167e4e; }
+.demo-login-body { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.demo-login-body strong { color: #2d2839; font-size: 11px; font-weight: 600; line-height: 1.3; }
+.demo-login-body span { color: #7f7a8b; font-size: 10px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.demo-login-arrow { align-items: center; color: #6748c1; display: flex; font-size: 11px; font-weight: 600; }
 .login-security { align-items: center; color: #9b96a3; display: flex; font-size: 9px; gap: 6px; justify-content: center; margin-top: 22px; }
 .login-security svg { color: #7e6cb0; }
 .login-no-account { color: #aaa5b1; font-size: 9px; margin: 32px 0 0; text-align: center; }

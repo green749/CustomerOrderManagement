@@ -82,7 +82,6 @@ class SMTPEmailProvider(BaseEmailProvider):
     def clear_config_cache(cls):
         cls._cached_smtp_config = None
         cls._config_cache_time = 0.0
-        cls._cached_connection = None
 
     def _get_smtp_config(self) -> Dict[str, Any]:
         now = time.time()
@@ -137,35 +136,6 @@ class SMTPEmailProvider(BaseEmailProvider):
             return False
         return False
 
-    _cached_connection = None
-    _cached_cfg_tuple = None
-    _cached_conn_time = 0.0
-
-    def _get_connection(self, cfg: dict):
-        now = time.time()
-        cfg_tuple = (cfg.get("host"), cfg.get("port"), cfg.get("user"), cfg.get("password"))
-        if self._cached_connection and self._cached_cfg_tuple == cfg_tuple and (now - self._cached_conn_time < 35):
-            try:
-                code, _ = self._cached_connection.noop()
-                if code == 250:
-                    return self._cached_connection
-            except Exception:
-                self._cached_connection = None
-
-        port = int(cfg["port"])
-        if port == 465:
-            server = smtplib.SMTP_SSL(cfg["host"], port, timeout=10)
-            server.login(cfg["user"], cfg["password"])
-        else:
-            server = smtplib.SMTP(cfg["host"], port, timeout=10)
-            server.starttls()
-            server.login(cfg["user"], cfg["password"])
-
-        self._cached_connection = server
-        self._cached_cfg_tuple = cfg_tuple
-        self._cached_conn_time = time.time()
-        return server
-
     def send_email(
         self,
         recipient: str,
@@ -178,6 +148,7 @@ class SMTPEmailProvider(BaseEmailProvider):
 
         # 1. Full authenticated SMTP if real credentials are provided (e.g. Gmail App Password or Ethereal)
         if cfg.get("host") and cfg["host"].lower() not in ("sandbox", "mock", "test", "dev") and cfg.get("user") and cfg.get("password"):
+            server = None
             try:
                 msg = MIMEMultipart("alternative")
                 msg["From"] = sender or cfg.get("sender") or self.default_sender
@@ -187,19 +158,28 @@ class SMTPEmailProvider(BaseEmailProvider):
                 rendered_html = html_body or EmailService.convert_text_to_neat_html(subject, body)
                 msg.attach(MIMEText(rendered_html, "html", "utf-8"))
 
-                server = self._get_connection(cfg)
+                port = int(cfg.get("port") or 587)
+                if port == 465:
+                    server = smtplib.SMTP_SSL(cfg["host"], port, timeout=15)
+                else:
+                    server = smtplib.SMTP(cfg["host"], port, timeout=15)
+                    server.starttls()
+                server.login(cfg["user"], cfg["password"])
+                server.send_message(msg)
                 try:
-                    server.send_message(msg)
+                    server.quit()
                 except Exception:
-                    # Connection dropped or timed out; reconnect and retry once
-                    self._cached_connection = None
-                    server = self._get_connection(cfg)
-                    server.send_message(msg)
+                    pass
+                server = None
 
                 message_id = f"smtp-{int(utcnow().timestamp())}"
                 return True, None, message_id
             except Exception as e:
-                self._cached_connection = None
+                if server:
+                    try:
+                        server.close()
+                    except Exception:
+                        pass
                 return False, f"SMTP delivery failed to {recipient}: {str(e)}", None
 
         # 2. Direct delivery for public testing mailboxes (YOPmail on port 587)
@@ -852,15 +832,31 @@ class EmailService:
     def dispatch_notifications_async(cls, notifications: List[Dict[str, Any]]):
         """
         Dispatches a list of notifications asynchronously in a background daemon thread
-        using a dedicated DB session and reusing the cached SMTP connection.
+        using a dedicated DB session with in-batch deduplication, cap, and polite SMTP pacing.
         """
         if not notifications:
             return
 
+        # In-memory deduplication: prevent sending duplicates within the same batch
+        seen_keys = set()
+        deduped_notifications = []
+        for notif in notifications:
+            order_id = notif.get("customer_order_id")
+            cat = notif.get("recipient_category")
+            recip = (notif.get("recipient_email") or "").strip().lower()
+            alert_id = notif.get("alert_id")
+            key = (order_id, cat, recip, alert_id)
+            if key not in seen_keys:
+                seen_keys.add(key)
+                deduped_notifications.append(notif)
+
+        # Cap batch size to prevent runaway SMTP floods (max 20 per cycle)
+        to_dispatch = deduped_notifications[:20]
+
         def _worker():
             db = SessionLocal()
             try:
-                for notif in notifications:
+                for idx, notif in enumerate(to_dispatch):
                     try:
                         cls._dispatch_and_persist_notification(
                             db=db,
@@ -874,6 +870,9 @@ class EmailService:
                             body_text=notif["body_text"],
                             html_body=notif.get("html_body"),
                         )
+                        # Polite throttle to respect SMTP server rate limits
+                        if idx < len(to_dispatch) - 1:
+                            time.sleep(0.2)
                     except Exception as e:
                         logger.error(f"Error dispatching notification for order {notif.get('customer_order_id')}: {e}")
             finally:

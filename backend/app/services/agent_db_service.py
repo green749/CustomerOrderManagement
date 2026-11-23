@@ -591,14 +591,16 @@ class AgentDatabaseService:
 
                 active_holds = [dict(r) for r in hold_rows]
 
-                # 2. Fetch open NCR / CAPA investigations
+                # 2. Fetch open NCR / CAPA investigations joined with fact_quality_inspection for product & order correlation
                 ncr_rows = conn.execute(text("""
-                    SELECT ncr_id, inspection_id, opened_ts, defect_code,
-                           root_cause_category, containment_action, owner_id,
-                           capa_due_date, capa_status, effectiveness_check
-                    FROM fact_ncr_capa
-                    WHERE capa_status != 'CLOSED'
-                    ORDER BY opened_ts DESC
+                    SELECT ncr.ncr_id, ncr.inspection_id, ncr.opened_ts, ncr.defect_code,
+                           ncr.root_cause_category, ncr.containment_action, ncr.owner_id,
+                           ncr.capa_due_date, ncr.capa_status, ncr.effectiveness_check,
+                           qi.product_id, qi.production_order_id
+                    FROM fact_ncr_capa ncr
+                    LEFT JOIN fact_quality_inspection qi ON ncr.inspection_id = qi.inspection_id
+                    WHERE ncr.capa_status != 'CLOSED'
+                    ORDER BY ncr.opened_ts DESC
                     LIMIT 20;
                 """)).mappings().all()
 
@@ -918,14 +920,16 @@ class AgentDatabaseService:
                     """)).mappings().all()
                     q_inspections = [dict(r) for r in insp_rows]
 
-                    # 2. Open NCR / CAPAs
+                    # 2. Open NCR / CAPAs joined with fact_quality_inspection
                     ncr_rows = conn.execute(text("""
-                        SELECT ncr_id, inspection_id, opened_ts, defect_code,
-                               root_cause_category, containment_action, owner_id,
-                               capa_due_date, capa_status, effectiveness_check
-                        FROM fact_ncr_capa
-                        WHERE capa_status != 'CLOSED'
-                        ORDER BY opened_ts DESC
+                        SELECT ncr.ncr_id, ncr.inspection_id, ncr.opened_ts, ncr.defect_code,
+                               ncr.root_cause_category, ncr.containment_action, ncr.owner_id,
+                               ncr.capa_due_date, ncr.capa_status, ncr.effectiveness_check,
+                               qi.product_id, qi.production_order_id
+                        FROM fact_ncr_capa ncr
+                        LEFT JOIN fact_quality_inspection qi ON ncr.inspection_id = qi.inspection_id
+                        WHERE ncr.capa_status != 'CLOSED'
+                        ORDER BY ncr.opened_ts DESC
                         LIMIT 30;
                     """)).mappings().all()
                     q_ncrs = [dict(r) for r in ncr_rows]
@@ -965,6 +969,12 @@ class AgentDatabaseService:
 
                     for ncr in q_ncrs:
                         telemetry["qms"].setdefault("ncrs_by_id", {})[ncr.get("ncr_id")] = ncr
+                        po = str(ncr.get("production_order_id") or "").strip().upper()
+                        pid = str(ncr.get("product_id") or "").strip().upper()
+                        if po:
+                            telemetry["qms"]["by_po"].setdefault(po, []).append(ncr)
+                        if pid:
+                            telemetry["qms"]["by_product"].setdefault(pid, []).append(ncr)
 
                 return "AGENT_08", True, f"{len(q_inspections)} quality holds/fails, {len(q_ncrs)} open NCRs, {len(q_events)} genealogy exceptions"
             except Exception as e:
