@@ -136,6 +136,61 @@ class SMTPEmailProvider(BaseEmailProvider):
             return False
         return False
 
+    @classmethod
+    def send_via_relay(
+        cls,
+        emails: List[Dict[str, Any]],
+        cfg: Optional[Dict[str, Any]] = None,
+        timeout: int = 20,
+    ) -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
+        """
+        Dispatches emails via HTTPS POST to Vercel Serverless Email Relay.
+        Render Free tier drops outbound TCP connections on ports 25, 465, and 587.
+        Relaying via HTTPS (port 443) bypasses Render's firewall restrictions cleanly.
+        """
+        import urllib.request
+        import urllib.error
+
+        relay_url = os.environ.get(
+            "SMTP_RELAY_URL",
+            "https://customer-order-management-two.vercel.app/api/relay-email",
+        )
+        if not relay_url:
+            return False, "No relay URL configured", None
+
+        smtp_cfg = cfg or {}
+        payload = {
+            "host": smtp_cfg.get("host") or "smtp.ethereal.email",
+            "port": smtp_cfg.get("port") or 587,
+            "user": smtp_cfg.get("user") or "dyfs2m763cn7s2uz@ethereal.email",
+            "password": smtp_cfg.get("password") or "KFHKGSc119pe56eY4f",
+            "sender": smtp_cfg.get("sender") or "Manufacturing 360 <dyfs2m763cn7s2uz@ethereal.email>",
+            "emails": emails,
+        }
+
+        try:
+            req_data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                relay_url,
+                data=req_data,
+                headers={"Content-Type": "application/json", "User-Agent": "Manufacturing360-Backend/1.0"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                resp_body = resp.read().decode("utf-8")
+                res_json = json.loads(resp_body)
+                if res_json.get("success"):
+                    return True, None, res_json
+                else:
+                    return False, res_json.get("error", "Unknown relay error"), res_json
+        except urllib.error.HTTPError as he:
+            err_body = he.read().decode("utf-8", errors="replace")
+            logger.warning(f"Relay HTTP {he.code}: {err_body}")
+            return False, f"Relay HTTP {he.code}: {err_body[:120]}", None
+        except Exception as e:
+            logger.warning(f"Relay request failed: {e}")
+            return False, f"Relay request failed: {str(e)}", None
+
     def get_smtp_session(self):
         """Creates and returns an authenticated SMTP connection for batch delivery."""
         cfg = self._get_smtp_config()
@@ -161,8 +216,26 @@ class SMTPEmailProvider(BaseEmailProvider):
     ) -> Tuple[bool, Optional[str], Optional[str]]:
         cfg = self._get_smtp_config()
 
+        is_render = bool(os.environ.get("RENDER")) or os.environ.get("USE_EMAIL_RELAY", "false").lower() in ("true", "1")
+
         # 1. Full authenticated SMTP if real credentials are provided (e.g. Gmail App Password or Ethereal)
         if cfg.get("host") and cfg["host"].lower() not in ("sandbox", "mock", "test", "dev") and cfg.get("user") and cfg.get("password"):
+            # If running on Render Free tier, direct SMTP ports are blocked at firewall: use HTTPS relay
+            if is_render:
+                single_email = [{
+                    "recipient": recipient,
+                    "subject": subject,
+                    "body": body,
+                    "html_body": html_body or EmailService.convert_text_to_neat_html(subject, body),
+                    "sender": sender or cfg.get("sender") or self.default_sender,
+                }]
+                ok, err, res = self.send_via_relay(single_email, cfg)
+                if ok:
+                    message_id = f"relay-{int(utcnow().timestamp())}"
+                    return True, None, message_id
+                logger.warning(f"Relay failed on Render, attempting direct fallback: {err}")
+
+            # Direct SMTP attempt (on local development, dedicated VMs, or if relay failed)
             managed = False
             active_server = server
             try:
@@ -195,6 +268,19 @@ class SMTPEmailProvider(BaseEmailProvider):
                         active_server.close()
                     except Exception:
                         pass
+
+                # If direct SMTP fails with timeout/network error, fallback to HTTPS relay!
+                single_email = [{
+                    "recipient": recipient,
+                    "subject": subject,
+                    "body": body,
+                    "html_body": html_body or EmailService.convert_text_to_neat_html(subject, body),
+                    "sender": sender or cfg.get("sender") or self.default_sender,
+                }]
+                ok_r, err_r, _ = self.send_via_relay(single_email, cfg)
+                if ok_r:
+                    return True, None, f"relay-fallback-{int(utcnow().timestamp())}"
+
                 return False, f"SMTP delivery failed to {recipient}: {str(e)}", None
 
         # 2. Direct delivery for public testing mailboxes (YOPmail on port 587)
@@ -783,7 +869,7 @@ class EmailService:
                 actual_send_recipient = recipient_email
             else:
                 import os
-                actual_send_recipient = os.getenv("DEFAULT_ALERT_EMAIL", recipient_email)
+                actual_send_recipient = os.getenv("DEFAULT_ALERT_EMAIL") or cfg.get("user") or recipient_email
 
         log = EmailNotificationLog(
             alert_id=alert_id,
@@ -873,6 +959,93 @@ class EmailService:
         def _worker():
             db = SessionLocal()
             provider = cls.get_provider()
+            is_render = bool(os.environ.get("RENDER")) or os.environ.get("USE_EMAIL_RELAY", "false").lower() in ("true", "1")
+
+            # FAST BATCH PATH: If on Render (or relay preferred) and using SMTPEmailProvider
+            if is_render and isinstance(provider, SMTPEmailProvider):
+                cfg = provider._get_smtp_config()
+                if cfg.get("host") and cfg["host"].lower() not in ("sandbox", "mock", "test", "dev"):
+                    email_payloads = []
+                    valid_notifs = []
+                    for notif in to_dispatch:
+                        recip = notif.get("recipient_email")
+                        if not cls.validate_email_address(recip):
+                            log = EmailNotificationLog(
+                                alert_id=notif.get("alert_id"),
+                                customer_order_id=notif["customer_order_id"],
+                                recipient_email=recip,
+                                recipient_category=notif["recipient_category"],
+                                department=notif["department"],
+                                notification_type=notif["notification_type"],
+                                subject=notif["subject"],
+                                body_text=notif["body_text"],
+                                status="FAILED",
+                                failure_reason=f"Recipient email '{recip}' failed validation check.",
+                                retry_count=0,
+                                created_at=utcnow(),
+                                last_attempt_at=utcnow(),
+                            )
+                            db.add(log)
+                            continue
+
+                        actual_recipient = recip
+                        if recip and (
+                            recip.endswith(".internal")
+                            or recip.endswith(".local")
+                            or "@manufacturing" in recip
+                            or any(d in recip.lower() for d in ["retailernorth.com", "mobilemart.com", "digitalbazaar.com", "globaldevices.com"])
+                        ):
+                            actual_recipient = os.getenv("DEFAULT_ALERT_EMAIL") or cfg.get("user") or recip
+
+                        email_payloads.append({
+                            "recipient": actual_recipient,
+                            "subject": notif["subject"],
+                            "body": notif["body_text"],
+                            "html_body": notif.get("html_body") or cls.convert_text_to_neat_html(notif["subject"], notif["body_text"]),
+                        })
+                        valid_notifs.append((notif, actual_recipient))
+
+                    if email_payloads:
+                        logger.info(f"Relaying batch of {len(email_payloads)} emails via HTTPS...")
+                        chunk_size = 15
+                        for i in range(0, len(email_payloads), chunk_size):
+                            chunk_emails = email_payloads[i : i + chunk_size]
+                            chunk_notifs = valid_notifs[i : i + chunk_size]
+                            ok, err, res = provider.send_via_relay(chunk_emails, cfg, timeout=25)
+                            results_map = {}
+                            if ok and res and "results" in res:
+                                for r in res["results"]:
+                                    results_map[r.get("recipient")] = r
+
+                            for (notif, act_recip) in chunk_notifs:
+                                r_info = results_map.get(act_recip)
+                                item_ok = r_info.get("success", False) if r_info else ok
+                                item_err = (r_info.get("error") if r_info else err) if not item_ok else None
+                                item_msg_id = (r_info.get("messageId") if r_info else f"relay-{int(utcnow().timestamp())}") if item_ok else None
+
+                                log = EmailNotificationLog(
+                                    alert_id=notif.get("alert_id"),
+                                    customer_order_id=notif["customer_order_id"],
+                                    recipient_email=notif["recipient_email"],
+                                    recipient_category=notif["recipient_category"],
+                                    department=notif["department"],
+                                    notification_type=notif["notification_type"],
+                                    subject=notif["subject"],
+                                    body_text=notif["body_text"],
+                                    status="SENT" if item_ok else "FAILED",
+                                    failure_reason=item_err,
+                                    provider_message_id=item_msg_id,
+                                    sent_at=utcnow() if item_ok else None,
+                                    retry_count=0 if item_ok else 1,
+                                    created_at=utcnow(),
+                                    last_attempt_at=utcnow(),
+                                )
+                                db.add(log)
+                            db.commit()
+
+                        db.close()
+                        return
+
             smtp_session = None
             if hasattr(provider, "get_smtp_session"):
                 try:
