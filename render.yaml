@@ -4,7 +4,7 @@ services:
     env: python
     region: oregon
     plan: standard
-    buildCommand: "pip install -r backend/requirements.txt && python backend/app/scripts/seed.py"
+    buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     rootDir: backend
     envVars:
