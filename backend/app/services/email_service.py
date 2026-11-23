@@ -216,12 +216,12 @@ class SMTPEmailProvider(BaseEmailProvider):
     ) -> Tuple[bool, Optional[str], Optional[str]]:
         cfg = self._get_smtp_config()
 
-        is_render = bool(os.environ.get("RENDER")) or os.environ.get("USE_EMAIL_RELAY", "false").lower() in ("true", "1")
+        use_relay = bool(os.environ.get("RENDER")) or os.environ.get("USE_EMAIL_RELAY", "true").lower() in ("true", "1")
 
         # 1. Full authenticated SMTP if real credentials are provided (e.g. Gmail App Password or Ethereal)
         if cfg.get("host") and cfg["host"].lower() not in ("sandbox", "mock", "test", "dev") and cfg.get("user") and cfg.get("password"):
-            # If running on Render Free tier, direct SMTP ports are blocked at firewall: use HTTPS relay
-            if is_render:
+            # If running on Render or relay enabled, use HTTPS relay to avoid firewall port 587 block
+            if use_relay:
                 single_email = [{
                     "recipient": recipient,
                     "subject": subject,
@@ -959,10 +959,10 @@ class EmailService:
         def _worker():
             db = SessionLocal()
             provider = cls.get_provider()
-            is_render = bool(os.environ.get("RENDER")) or os.environ.get("USE_EMAIL_RELAY", "false").lower() in ("true", "1")
+            use_relay = bool(os.environ.get("RENDER")) or os.environ.get("USE_EMAIL_RELAY", "true").lower() in ("true", "1")
 
             # FAST BATCH PATH: If on Render (or relay preferred) and using SMTPEmailProvider
-            if is_render and isinstance(provider, SMTPEmailProvider):
+            if use_relay and isinstance(provider, SMTPEmailProvider):
                 cfg = provider._get_smtp_config()
                 if cfg.get("host") and cfg["host"].lower() not in ("sandbox", "mock", "test", "dev"):
                     email_payloads = []
