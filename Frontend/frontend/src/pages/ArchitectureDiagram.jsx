@@ -60,6 +60,23 @@ import {
 import { dashboardApi } from '../api/dashboard.api'
 import { formatINR } from '../utils/format'
 
+// Enterprise Architecture Graphic Assets
+import erpMmsImg from '../assets/architecture/erp_mms.png'
+import mesWmsImg from '../assets/architecture/mes_wms.png'
+import qmsTmsImg from '../assets/architecture/qms_tms.png'
+import fastapiGatewayImg from '../assets/architecture/fastapi_gateway.png'
+import agent1AssistantImg from '../assets/architecture/agent1_assistant.png'
+import agent2FeasibilityImg from '../assets/architecture/agent2_feasibility.png'
+import agent3SurveillanceImg from '../assets/architecture/agent3_surveillance.png'
+import governanceApprovalImg from '../assets/architecture/governance_approval.png'
+import closedloopEmailImg from '../assets/architecture/closedloop_email.png'
+import closedloopVisualizationImg from '../assets/architecture/closedloop_visualization.png'
+import closedloopAlertsImg from '../assets/architecture/closedloop_alerts.png'
+
+// Dynamic Swagger Docs URL (pointing to production FastAPI backend or env VITE_API_BASE_URL)
+const rawBaseApi = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '').replace(/\/api$/, '') || 'https://customerordermanagement-yq6q.onrender.com'
+const SWAGGER_DOCS_URL = `${rawBaseApi}/api/docs`
+
 // -----------------------------------------------------------------------------
 // COMPREHENSIVE TECHNICAL CARD BLUEPRINTS (CLICKABLE DETAILS FOR BOTTOM-LEFT)
 // -----------------------------------------------------------------------------
@@ -73,6 +90,7 @@ const CARD_SPECS = {
     color: '#b91c1c',
     bg: '#fef2f2',
     icon: Factory,
+    image: erpMmsImg,
     role: 'Centralizes continuous operational synchronization across 7 fragmented departmental systems without writing directly to legacy production databases.',
     protocols: 'SAP RFC / OData v4, Siemens MindSphere API, Manhattan REST, Veeva QMS Webhooks, Carrier EDI 214',
     tables: ['dim_customer', 'dim_product', 'dim_plant', 'dim_machine', 'dim_material', 'fact_inventory_daily_snapshot'],
@@ -95,6 +113,7 @@ const CARD_SPECS = {
     color: '#0284c7',
     bg: '#f0f9ff',
     icon: Database,
+    image: erpMmsImg,
     role: 'Synchronizes commercial sales contracts and pricing agreements from SAP S/4HANA with component inventory schedules from Master Production Scheduling (MMS).',
     protocols: 'SAP OData v4 · RFC / BAPI · MMS Material Master API · EDI 850 / 855',
     tables: ['fact_customer_order', 'dim_customer', 'dim_product', 'dim_material', 'fact_inventory_daily_snapshot'],
@@ -117,6 +136,7 @@ const CARD_SPECS = {
     color: '#10b981',
     bg: '#f0fdf4',
     icon: Factory,
+    image: mesWmsImg,
     role: 'Monitors real-time machine run-rates, routing work centers, preventative maintenance cycles, and warehouse bin allocations across Chennai & Bengaluru plants.',
     protocols: 'Siemens Opcenter API · Manhattan Associates WMS REST · OPC-UA Telemetry',
     tables: ['dim_plant', 'dim_machine', 'fact_production_order', 'fact_inventory_daily_snapshot'],
@@ -139,6 +159,7 @@ const CARD_SPECS = {
     color: '#8b5cf6',
     bg: '#faf5ff',
     icon: Truck,
+    image: qmsTmsImg,
     role: 'Enforces strict quality release standards (16,000+ inspected batches, 96.5% yield) and monitors multimodal freight transit milestones across carrier partners.',
     protocols: 'Veeva QMS Webhooks · Carrier EDI 214 Freight Tracking · REST GPS feeds',
     tables: ['fact_quality_inspection', 'fact_shipment_milestone'],
@@ -163,6 +184,7 @@ const CARD_SPECS = {
     color: '#1e40af',
     bg: '#eff6ff',
     icon: Server,
+    image: fastapiGatewayImg,
     role: 'High-throughput async backend routing queries, enforcing JWT role-based access control (RBAC), and streaming real-time multi-agent reasoning steps via Server-Sent Events (SSE).',
     protocols: 'FastAPI (Python 3.12) · Port 8000 · HTTP/2 REST · SSE Stream · JWT Bearer',
     tables: ['users', 'user_roles', 'audit_logs', 'system_settings'],
@@ -187,6 +209,7 @@ const CARD_SPECS = {
     color: '#6f3dba',
     bg: '#faf5ff',
     icon: Bot,
+    image: agent1AssistantImg,
     role: 'Autonomous conversational assistant that answers multi-department operational questions using Domo AI Text Generation and read-only SQL tools.',
     protocols: 'Domo AI Text Generation API · ReAct Tool-Calling Loop · PostgreSQL Read-Only Tools',
     tables: ['fact_customer_order', 'fact_production_order', 'dim_customer', 'dim_product', 'dim_material'],
@@ -209,6 +232,7 @@ const CARD_SPECS = {
     color: '#0284c7',
     bg: '#f0f9ff',
     icon: Cpu,
+    image: agent2FeasibilityImg,
     role: 'Autonomously audits customer order feasibility across all 7 operational departments sequentially (ERP → MMS → MES → WMS → QMS → TMS → PLM) to synthesize a realistic achievable date.',
     protocols: 'Deterministic Order Auditing · Domo AI Synthesis · Dynamic Rescheduling Engine',
     tables: ['order_assessments', 'department_readiness', 'commitment_proposals'],
@@ -233,6 +257,7 @@ const CARD_SPECS = {
     color: '#10b981',
     bg: '#ecfdf5',
     icon: Activity,
+    image: agent3SurveillanceImg,
     role: 'Continuously monitors all active customer orders against baseline delivery milestones, detects operational anomalies, and enforces a mandatory 3-day SLA follow-up escalation rule.',
     protocols: 'Background Cron Scheduler · SHA-256 Alert Deduplication · Ethereal SMTP',
     tables: ['order_monitoring_records', 'risk_alerts', 'email_notification_logs', 'monitoring_execution_logs'],
@@ -258,6 +283,7 @@ const CARD_SPECS = {
     color: '#1d4ed8',
     bg: '#eff6ff',
     icon: ShieldCheck,
+    image: governanceApprovalImg,
     role: 'Prevents autonomous AI agents from binding the company to commercial agreements. Enforces mandatory human commercial approval before orders transition to active manufacturing.',
     protocols: 'Role-Based Access Control (RBAC) · Segregation of Duties (SoD) · Cryptographic Audit Trail',
     tables: ['commitment_proposals', 'users', 'audit_logs'],
@@ -277,12 +303,13 @@ const CARD_SPECS = {
   // STAGE 5: CLOSED-LOOP
   dual_email: {
     id: 'dual_email',
-    title: 'Dual Email Routing (CS & Operational Leads)',
+    title: 'Email (Dual Routing & Dispatch)',
     subtitle: 'Automated Technical Notices to Plant Ops & Delivery Impact Summaries to CS',
-    badge: 'STAGE 5 · DUAL EMAIL DISPATCH',
+    badge: 'STAGE 5 · EMAIL DISPATCH',
     color: '#d97706',
     bg: '#fffbeb',
     icon: Mail,
+    image: closedloopEmailImg,
     role: 'Dispatches targeted automated notifications to ensure plant supervisors receive actionable technical instructions while customer service receives commercial impact summaries.',
     protocols: 'Ethereal / Gmail SMTP · Transactional HTML Notification Engine · SMTP Webhooks',
     tables: ['email_notification_logs', 'risk_alerts', 'fact_customer_order'],
@@ -297,36 +324,15 @@ const CARD_SPECS = {
     link: '/monitoring/outbox',
     linkLabel: 'Open Email Outbox',
   },
-  corrective_action: {
-    id: 'corrective_action',
-    title: 'Corrective Action (Expedite, Buffer, Close)',
-    subtitle: 'Verified Shop-Floor Remediation & Resolution Tracking in My Work',
-    badge: 'STAGE 5 · CORRECTIVE ACTION',
-    color: '#15803d',
-    bg: '#f0fdf4',
-    icon: CheckSquare,
-    role: 'Closes the loop between automated surveillance detection and human shop-floor execution by tracking verified operator resolutions.',
-    protocols: 'REST Webhooks · Neon PostgreSQL 16 ACID Transactions · My Work Execution Bus',
-    tables: ['risk_alerts', 'order_monitoring_records', 'audit_logs'],
-    executionSteps: [
-      'Presents verified shop-floor remediation options (Expedite Work Order, Reassign Work Center, Buffer Stock).',
-      'Operators record verified resolution notes and release quarantine holds directly in My Work.',
-      'Updates Neon PostgreSQL 16 risk status from ACTIVE to RESOLVED with operator identity.',
-      'Triggers automated follow-up notification confirming blocker removal.',
-    ],
-    inputs: ['Operator verified corrective action notes', 'Shop-floor resolution tickets'],
-    outputs: ['Verified delivery confirmation', 'Updated milestone schedules', 'Resolved risk alerts'],
-    link: '/my-work',
-    linkLabel: 'Open My Work Queue',
-  },
   command_portals: {
     id: 'command_portals',
-    title: 'Command Portals (OTIF & Delivery Progress)',
+    title: 'Visualization (Command Portals & Heatmaps)',
     subtitle: 'Real-Time Executive Command Center, Heatmaps & Operational Analytics',
-    badge: 'STAGE 5 · COMMAND PORTALS',
+    badge: 'STAGE 5 · VISUALIZATION',
     color: '#0284c7',
     bg: '#f0f9ff',
     icon: LayoutDashboard,
+    image: closedloopVisualizationImg,
     role: 'Provides enterprise-wide transparency into active order book progress, customer delivery commitments, and plant throughput with zero mock data.',
     protocols: 'React 18 · Recharts SVG · Neon PostgreSQL 16 Telemetry · Zero Mock Data',
     tables: ['fact_customer_order', 'dim_customer', 'fact_production_order'],
@@ -340,6 +346,29 @@ const CARD_SPECS = {
     outputs: ['Interactive visual dashboards', 'Live executive KPI dashboards', 'Customer delivery heatmaps'],
     link: '/overview',
     linkLabel: 'Open Command Center',
+  },
+  corrective_action: {
+    id: 'corrective_action',
+    title: 'Alerts (Surveillance & Exception Remediation)',
+    subtitle: 'Verified Shop-Floor Remediation & Resolution Tracking in My Work',
+    badge: 'STAGE 5 · ALERTS & ACTION',
+    color: '#dc2626',
+    bg: '#fef2f2',
+    icon: AlertTriangle,
+    image: closedloopAlertsImg,
+    role: 'Closes the loop between automated surveillance detection and human shop-floor execution by tracking verified operator resolutions.',
+    protocols: 'REST Webhooks · Neon PostgreSQL 16 ACID Transactions · My Work Execution Bus',
+    tables: ['risk_alerts', 'order_monitoring_records', 'audit_logs'],
+    executionSteps: [
+      'Presents verified shop-floor remediation options (Expedite Work Order, Reassign Work Center, Buffer Stock).',
+      'Operators record verified resolution notes and release quarantine holds directly in My Work.',
+      'Updates Neon PostgreSQL 16 risk status from ACTIVE to RESOLVED with operator identity.',
+      'Triggers automated follow-up notification confirming blocker removal.',
+    ],
+    inputs: ['Operator verified corrective action notes', 'Shop-floor resolution tickets'],
+    outputs: ['Verified delivery confirmation', 'Updated milestone schedules', 'Resolved risk alerts'],
+    link: '/my-work',
+    linkLabel: 'Open My Work Queue',
   },
   // -----------------------------------------------------------------------------
   // PROBLEM STATEMENT SPECS (CLICKABLE CARDS FOR QUADRANT 2 -> DETAILS IN QUADRANT 3)
@@ -1837,7 +1866,7 @@ export default function ArchitectureDiagram() {
                   }}
                   title="Click to view ERP & MMS specifications"
                 >
-                  <DatabaseGearRefIcon size={32} />
+                  <img src={erpMmsImg} alt="ERP & MMS" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
                   <div style={{ minWidth: 0, lineHeight: 1.15 }}>
                     <div style={{ fontSize: 9, fontWeight: 800, color: '#0369a1' }}>ERP &amp; MMS</div>
                     <div style={{ fontSize: 7.5, color: '#0284c7' }}>SAP / OData / BOM</div>
@@ -1864,7 +1893,7 @@ export default function ArchitectureDiagram() {
                   }}
                   title="Click to view MES & WMS specifications"
                 >
-                  <MesWmsRefIcon size={32} />
+                  <img src={mesWmsImg} alt="MES & WMS" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
                   <div style={{ minWidth: 0, lineHeight: 1.15 }}>
                     <div style={{ fontSize: 9, fontWeight: 800, color: '#15803d' }}>MES &amp; WMS</div>
                     <div style={{ fontSize: 7.5, color: '#16a34a' }}>Siemens / Inventory</div>
@@ -1891,7 +1920,7 @@ export default function ArchitectureDiagram() {
                   }}
                   title="Click to view QMS & TMS specifications"
                 >
-                  <QmsTmsRefIcon size={32} />
+                  <img src={qmsTmsImg} alt="QMS & TMS" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
                   <div style={{ minWidth: 0, lineHeight: 1.15 }}>
                     <div style={{ fontSize: 9, fontWeight: 800, color: '#6d28d9' }}>QMS &amp; TMS</div>
                     <div style={{ fontSize: 7.5, color: '#7c3aed' }}>QA Holds / Logistics</div>
@@ -1958,7 +1987,7 @@ export default function ArchitectureDiagram() {
                   background: 'var(--kg-bg-3)',
                 }}
               >
-                <DataPrepDatabaseGearsRefIcon size={52} />
+                <img src={fastapiGatewayImg} alt="FastAPI Engine" style={{ width: 48, height: 48, objectFit: 'contain', margin: '2px 0' }} />
                 <div style={{ fontSize: 9.5, fontWeight: 800, color: '#1e3a8a', lineHeight: 1.2 }}>
                   FastAPI Engine
                 </div>
@@ -2047,7 +2076,7 @@ export default function ArchitectureDiagram() {
                   }}
                   title="Click to view Agent 1: Assistant specifications"
                 >
-                  <Agent1BotRefIcon size={32} />
+                  <img src={agent1AssistantImg} alt="Agent 1: Assistant" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
                   <div style={{ minWidth: 0, lineHeight: 1.15 }}>
                     <div style={{ fontSize: 9, fontWeight: 800, color: '#581c87' }}>
                       Agent 1: Assistant
@@ -2076,7 +2105,7 @@ export default function ArchitectureDiagram() {
                   }}
                   title="Click to view Agent 2: Feasibility Engine specifications"
                 >
-                  <Agent2CpuRefIcon size={32} />
+                  <img src={agent2FeasibilityImg} alt="Agent 2: Feasibility" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
                   <div style={{ minWidth: 0, lineHeight: 1.15 }}>
                     <div style={{ fontSize: 9, fontWeight: 800, color: '#0369a1' }}>
                       Agent 2: Feasibility
@@ -2105,7 +2134,7 @@ export default function ArchitectureDiagram() {
                   }}
                   title="Click to view Agent 3: Surveillance Radar specifications"
                 >
-                  <Agent3RadarRefIcon size={32} />
+                  <img src={agent3SurveillanceImg} alt="Agent 3: Surveillance" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
                   <div style={{ minWidth: 0, lineHeight: 1.15 }}>
                     <div style={{ fontSize: 9, fontWeight: 800, color: '#15803d' }}>
                       Agent 3: Surveillance
@@ -2174,7 +2203,7 @@ export default function ArchitectureDiagram() {
                   background: 'var(--kg-bg-3)',
                 }}
               >
-                <GovernanceShieldGateCenterSvg size={52} />
+                <img src={governanceApprovalImg} alt="Human Approval Gate" style={{ width: 48, height: 48, objectFit: 'contain', margin: '2px 0' }} />
                 <div style={{ fontSize: 9.5, fontWeight: 800, color: '#1e3a8a', lineHeight: 1.2 }}>
                   Human Approval Gate
                 </div>
@@ -2207,7 +2236,7 @@ export default function ArchitectureDiagram() {
                 transition: 'all 0.15s ease',
                 boxShadow: ['dual_email', 'corrective_action', 'command_portals', 'dispatch'].includes(selectedCardId) ? '0 0 0 2px #991b1b, 0 4px 12px rgba(153, 27, 27, 0.15)' : 'none',
               }}
-              title="Click to view Stage 5: Closed-Loop (Actions & Dispatch) specifications"
+              title="Click to view Stage 5: Closed-Loop (Email, Visualization, Alerts) specifications"
             >
               <div
                 style={{
@@ -2233,7 +2262,7 @@ export default function ArchitectureDiagram() {
               </div>
 
               <div style={{ padding: 4, display: 'flex', flexDirection: 'column', gap: 4, flex: 1, justifyContent: 'center' }}>
-                {/* Dual Email Routing */}
+                {/* Email */}
                 <div
                   onClick={(e) => {
                     e.stopPropagation()
@@ -2251,43 +2280,16 @@ export default function ArchitectureDiagram() {
                     cursor: 'pointer',
                     boxShadow: selectedCardId === 'dual_email' || selectedCardId === 'dispatch' ? '0 0 0 2px #d97706' : 'none',
                   }}
-                  title="Click to view Dual Email Routing specifications"
+                  title="Click to view Email Routing specifications"
                 >
-                  <DualEmailRefIcon size={32} />
+                  <img src={closedloopEmailImg} alt="Email" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
                   <div style={{ minWidth: 0, lineHeight: 1.15 }}>
-                    <div style={{ fontSize: 9, fontWeight: 800, color: '#92400e' }}>Dual Email Routing</div>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: '#92400e' }}>Email</div>
                     <div style={{ fontSize: 7.5, color: '#b45309' }}>CS &amp; Operational Leads</div>
                   </div>
                 </div>
 
-                {/* Corrective Action */}
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setSelectedCardId('corrective_action')
-                  }}
-                  style={{
-                    background: selectedCardId === 'corrective_action' ? '#dcfce7' : 'var(--surface-hi)',
-                    border: '1px solid',
-                    borderColor: selectedCardId === 'corrective_action' ? '#10b981' : 'var(--line)',
-                    borderRadius: 5,
-                    padding: '4px 6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    cursor: 'pointer',
-                    boxShadow: selectedCardId === 'corrective_action' ? '0 0 0 2px #10b981' : 'none',
-                  }}
-                  title="Click to view Corrective Action specifications"
-                >
-                  <CorrectiveActionRefIcon size={32} />
-                  <div style={{ minWidth: 0, lineHeight: 1.15 }}>
-                    <div style={{ fontSize: 9, fontWeight: 800, color: '#15803d' }}>Corrective Action</div>
-                    <div style={{ fontSize: 7.5, color: '#16a34a' }}>Expedite, Buffer, Close</div>
-                  </div>
-                </div>
-
-                {/* Command Portals */}
+                {/* Visualization */}
                 <div
                   onClick={(e) => {
                     e.stopPropagation()
@@ -2305,12 +2307,39 @@ export default function ArchitectureDiagram() {
                     cursor: 'pointer',
                     boxShadow: selectedCardId === 'command_portals' ? '0 0 0 2px #0284c7' : 'none',
                   }}
-                  title="Click to view Command Portals specifications"
+                  title="Click to view Visualization & Command Portals specifications"
                 >
-                  <CommandPortalRefIcon size={32} />
+                  <img src={closedloopVisualizationImg} alt="Visualization" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
                   <div style={{ minWidth: 0, lineHeight: 1.15 }}>
-                    <div style={{ fontSize: 9, fontWeight: 800, color: '#0369a1' }}>Command Portals</div>
-                    <div style={{ fontSize: 7.5, color: '#0284c7' }}>OTIF &amp; Delivery Progress</div>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: '#0369a1' }}>Visualization</div>
+                    <div style={{ fontSize: 7.5, color: '#0284c7' }}>Command Portals &amp; Heatmaps</div>
+                  </div>
+                </div>
+
+                {/* Alerts */}
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedCardId('corrective_action')
+                  }}
+                  style={{
+                    background: selectedCardId === 'corrective_action' ? '#fee2e2' : 'var(--surface-hi)',
+                    border: '1px solid',
+                    borderColor: selectedCardId === 'corrective_action' ? '#dc2626' : 'var(--line)',
+                    borderRadius: 5,
+                    padding: '4px 6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                    boxShadow: selectedCardId === 'corrective_action' ? '0 0 0 2px #dc2626' : 'none',
+                  }}
+                  title="Click to view Alerts & Exception Remediation specifications"
+                >
+                  <img src={closedloopAlertsImg} alt="Alerts" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
+                  <div style={{ minWidth: 0, lineHeight: 1.15 }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: '#b91c1c' }}>Alerts</div>
+                    <div style={{ fontSize: 7.5, color: '#dc2626' }}>Real-Time Exception Dispatch</div>
                   </div>
                 </div>
               </div>
@@ -2705,7 +2734,7 @@ export default function ArchitectureDiagram() {
                     PORT 8000 · ONLINE
                   </span>
                   <a
-                    href="http://localhost:8000/api/docs"
+                    href={SWAGGER_DOCS_URL}
                     target="_blank"
                     rel="noreferrer"
                     style={{
@@ -2937,7 +2966,7 @@ export default function ArchitectureDiagram() {
                   Interactive Component Telemetry: <strong style={{ color: '#10b981' }}>FastAPI 0.111 · Port 8000 Active</strong>
                 </span>
                 <a
-                  href="http://localhost:8000/api/docs"
+                  href={SWAGGER_DOCS_URL}
                   target="_blank"
                   rel="noreferrer"
                   style={{
@@ -2971,17 +3000,27 @@ export default function ArchitectureDiagram() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div
                     style={{
-                      width: 24,
-                      height: 24,
+                      width: 26,
+                      height: 26,
                       borderRadius: 6,
                       background: activeCard.bg,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: activeCard.color,
+                      overflow: 'hidden',
+                      flexShrink: 0,
                     }}
                   >
-                    <activeCard.icon size={14} />
+                    {activeCard.image ? (
+                      <img
+                        src={activeCard.image}
+                        alt={activeCard.title}
+                        style={{ width: 20, height: 20, objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <activeCard.icon size={14} />
+                    )}
                   </div>
                   <strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>
                     {activeCard.title}
