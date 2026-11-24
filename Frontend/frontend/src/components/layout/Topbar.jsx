@@ -13,7 +13,7 @@ const pageTitles = {
   '/architecture': 'System Architecture',
   '/framework': 'System Framework & Flow',
   '/architecture-diagram': 'System Architecture',
-  '/assistant': 'AI Assistant · Agent 1',
+  '/assistant': 'AI Chatbot · Agent 1',
   '/reports': 'Reports & Analytics',
   '/settings': 'Settings & Team',
   // Backward compatibility aliases

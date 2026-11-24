@@ -222,7 +222,7 @@ const CARD_SPECS = {
     inputs: ['User natural language prompts', 'Database schema metadata', 'Tool execution outputs'],
     outputs: ['Transparent thought reasoning steps', 'Verifiable SQL facts & synthesized answers'],
     link: '/assistant',
-    linkLabel: 'Open Operations Assistant',
+    linkLabel: 'Open AI Chatbot',
   },
   agent2: {
     id: 'agent2',
@@ -3129,21 +3129,41 @@ export default function ArchitectureDiagram() {
                 <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
                   Interactive Component Telemetry: <strong style={{ color: '#10b981' }}>Active &amp; Online</strong>
                 </span>
-                <Link
-                  to={activeCard.link}
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: activeCard.color,
-                    textDecoration: 'none',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  <span>{activeCard.linkLabel}</span>
-                  <ExternalLink size={12} />
-                </Link>
+                {activeCard.link.startsWith('http') ? (
+                  <a
+                    href={activeCard.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: activeCard.color,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <span>{activeCard.linkLabel}</span>
+                    <ExternalLink size={12} />
+                  </a>
+                ) : (
+                  <Link
+                    to={activeCard.link}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: activeCard.color,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <span>{activeCard.linkLabel}</span>
+                    <ExternalLink size={12} />
+                  </Link>
+                )}
               </div>
             </>
           )}

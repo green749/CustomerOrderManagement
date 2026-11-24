@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   Bot,
   Send,
@@ -163,6 +164,7 @@ export function FloatingChatbot() {
   const messagesEndRef = useRef(null)
   const textareaRef = useRef(null)
   const requestCounterRef = useRef(0)
+  const location = useLocation()
 
   // Scroll to bottom whenever messages or sending state changes
   useEffect(() => {
@@ -179,6 +181,13 @@ export function FloatingChatbot() {
       }, 100)
     }
   }, [isOpen])
+
+  // Open chatbot when global open-chatbot event is fired
+  useEffect(() => {
+    const handleOpen = () => setIsOpen(true)
+    window.addEventListener('open-chatbot', handleOpen)
+    return () => window.removeEventListener('open-chatbot', handleOpen)
+  }, [])
 
   const handleStartNewChat = () => {
     setConversationId(null)
@@ -243,6 +252,11 @@ export function FloatingChatbot() {
       e.preventDefault()
       handleSendMessage()
     }
+  }
+
+  // Hide floating widget when on the dedicated full-page chatbot route (/assistant)
+  if (location.pathname === '/assistant') {
+    return null
   }
 
   return (

@@ -26,6 +26,7 @@ export const NAVIGATION_ITEMS = [
   { label: 'Overview', to: '/', icon: LayoutDashboard },
   { label: 'Orders', to: '/orders', icon: ClipboardList },
   { label: 'Assessments', to: '/assessments', icon: Cpu },
+  { label: 'Chatbot', to: '/assistant', icon: Bot },
   { label: 'My Work', to: '/my-work', icon: CheckSquare },
   { label: 'Monitoring', to: '/monitoring', icon: Activity },
   { label: 'Connectors', to: '/connectors', icon: Plug2 },
