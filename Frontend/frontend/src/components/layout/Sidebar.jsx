@@ -78,7 +78,7 @@ export function Sidebar({ mobileOpen, onClose }) {
           }}
         >
           {collapsed ? (
-            <NavLink to="/" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+            <NavLink to="/architecture" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
               <img
                 src={gwcIcon}
                 alt="GWC DATA.AI"
@@ -92,7 +92,7 @@ export function Sidebar({ mobileOpen, onClose }) {
             </NavLink>
           ) : (
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '4px 0' }}>
-              <NavLink to="/" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
+              <NavLink to="/architecture" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
                 <img
                   src={gwcFullLogo}
                   alt="GWC DATA.AI"

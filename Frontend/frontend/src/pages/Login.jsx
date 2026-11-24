@@ -19,7 +19,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [validation, setValidation] = useState({})
 
-  if (user) return <Navigate to="/" replace />
+  if (user) return <Navigate to="/architecture" replace />
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -33,7 +33,8 @@ export default function Login() {
     setLoading(true)
     try {
       await login({ email: email.trim(), password })
-      const destination = location.state?.from?.pathname ?? '/'
+      const fromPath = location.state?.from?.pathname
+      const destination = fromPath && fromPath !== '/' && fromPath !== '/login' ? fromPath : '/architecture'
       navigate(destination, { replace: true })
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to sign in. Please check your credentials.'))
@@ -51,7 +52,8 @@ export default function Login() {
     setLoadingRole(roleKey)
     try {
       await login({ email: demoEmail, password: demoPassword })
-      const destination = location.state?.from?.pathname ?? '/'
+      const fromPath = location.state?.from?.pathname
+      const destination = fromPath && fromPath !== '/' && fromPath !== '/login' ? fromPath : '/architecture'
       navigate(destination, { replace: true })
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to sign in with demo account. Please check connection.'))
